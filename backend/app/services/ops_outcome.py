@@ -13,8 +13,10 @@
 5. **n<20 只标"样本不足"，不给结论**；结论性质是**观察性相关，不是因果**。
 """
 
+import json
 import re
 import statistics
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Iterable
 from zoneinfo import ZoneInfo
@@ -276,3 +278,69 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
         "velocity_strata": strata,
         "note": "观察性相关，不是因果：操作是你自己按状态选的，且同一时刻可能有多个操作。",
     }
+
+
+_VERDICT_LABEL = {"positive": "正向", "negative": "负向", "neutral": "中性"}
+
+
+def significant_operations(result: dict) -> list[dict]:
+    """只保留样本够（n >= min_sample）的操作类型。"""
+    min_sample = int(result.get("min_sample") or MIN_SAMPLE)
+    return [
+        row
+        for row in result.get("operations", [])
+        if int(row.get("n") or 0) >= min_sample
+    ]
+
+
+def format_ledger(rows: list[dict]) -> str:
+    """把历史账本渲染成一段 Markdown（盯盘报表 / 复盘共用）。"""
+    if not rows:
+        return ""
+    lines = ["### 历史账本（本账户实测）", ""]
+    for row in rows:
+        lines.append(
+            f"- {row.get('operation')}：净效应 {float(row.get('net_effect') or 0):+.2f}"
+            f"（n={row.get('n')}，{_VERDICT_LABEL.get(str(row.get('verdict')), row.get('verdict'))}）"
+        )
+    lines.append("")
+    lines.append(
+        "> 已扣掉账户自然漂移；样本 < 20 不出结论；"
+        "这是**观察到相关**，不是因果，做决策时请结合当下判断。"
+    )
+    return "\n".join(lines)
+
+
+SNAPSHOT_PATH = Path(__file__).resolve().parents[3] / ".local" / "asset_snapshots.json"
+
+
+class AssetSnapshotStore:
+    """数据资产快照：每天存一份"当前资产长什么样"。
+
+    价值：能看到样本在长大、结论在变稳（还是变卦），而不是只有一份"此刻"的表。
+    """
+
+    def __init__(self, path: Path = SNAPSHOT_PATH) -> None:
+        self.path = path
+
+    def list(self) -> list[dict]:
+        if not self.path.exists():
+            return []
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        return payload if isinstance(payload, list) else []
+
+    def record(self, result: dict) -> dict:
+        """同一天只留一份（后写的覆盖），避免一天多次刷新堆一堆。"""
+        day = str(result.get("generated_at") or "")[:10]
+        items = [item for item in self.list() if item.get("date") != day]
+        entry = {"date": day, "snapshot": result}
+        items.append(entry)
+        items.sort(key=lambda item: str(item.get("date") or ""))
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(
+            json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return entry

@@ -222,6 +222,18 @@ async def catch_up_material_analysis(application: FastAPI) -> None:
         return
 
 
+async def run_asset_snapshot(application: FastAPI) -> dict:
+    """每天存一份数据资产快照：看样本在长大、结论在变稳。"""
+    try:
+        from app.services.ops_outcome import AssetSnapshotStore, compute_ops_outcome
+
+        store = application.state.live_watch_service.store
+        result = compute_ops_outcome(store.list_logs(limit=1500))
+        AssetSnapshotStore().record(result)
+        return {"date": str(result.get("generated_at") or "")[:10]}
+    except Exception:  # noqa: BLE001
+        return {}
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     review_store = LiveReviewStore()
@@ -718,6 +730,20 @@ async def lifespan(application: FastAPI):
             timezone="Asia/Shanghai",
         ),
         id="daily-ops-briefing",
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=6 * 60 * 60,
+    )
+    # 08:10 存一份数据资产快照（等 08:00 素材分析、08:05 汇报落地）
+    scheduler.add_job(
+        partial(run_asset_snapshot, application),
+        CronTrigger(
+            hour=MATERIAL_ANALYSIS_HOUR,
+            minute=10,
+            timezone="Asia/Shanghai",
+        ),
+        id="daily-asset-snapshot",
         replace_existing=True,
         coalesce=True,
         max_instances=1,

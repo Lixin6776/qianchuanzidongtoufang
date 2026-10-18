@@ -52,3 +52,19 @@ def test_compute_ops_outcome_structure_and_sample_guard():
     op = next((x for x in result["operations"] if x["operation"] == "加追投预算"), None)
     assert op is not None
     assert op["verdict"] == "insufficient"
+
+
+def test_asset_snapshot_store_dedupes_by_day(tmp_path):
+    """资产快照：同一天只留一份（后写覆盖），跨天各留一份。"""
+    from app.services.ops_outcome import AssetSnapshotStore
+
+    store = AssetSnapshotStore(tmp_path / "snaps.json")
+    store.record({"generated_at": "2026-10-17T08:10:00+08:00", "operations": [1]})
+    store.record({"generated_at": "2026-10-17T09:00:00+08:00", "operations": [2]})
+    store.record({"generated_at": "2026-10-18T08:10:00+08:00", "operations": [3]})
+
+    items = store.list()
+    assert len(items) == 2
+    assert items[0]["date"] == "2026-10-17"
+    assert items[0]["snapshot"]["operations"] == [2]   # 同天后写覆盖
+    assert items[1]["date"] == "2026-10-18"
