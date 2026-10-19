@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { getOpsOutcomeOverview } from "../lib/api";
+import { getOpsOutcomeCases, getOpsOutcomeOverview, opsCasesCsvUrl } from "../lib/api";
 import { OpsOutcomePanel } from "./OpsOutcomePanel";
 
 type Overview = {
@@ -29,11 +29,15 @@ type Overview = {
  */
 export function DataAssetPanel() {
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [cases, setCases] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
     getOpsOutcomeOverview()
       .then((value) => setOverview(value as Overview))
       .catch(() => setOverview(null));
+    getOpsOutcomeCases(100)
+      .then((value) => setCases(value as Array<Record<string, unknown>>))
+      .catch(() => setCases([]));
   }, []);
 
   return (
@@ -88,6 +92,50 @@ export function DataAssetPanel() {
       ) : null}
 
       <OpsOutcomePanel />
+
+      <h4 style={{ marginTop: 18 }}>操作流水（逐笔可追溯）</h4>
+      <p className="monitor-signal">
+        这是数据资产的原始凭证：每笔操作 + 操作前 / 10 分钟后 / 20 分钟后的边际 ROI。
+        <a href={opsCasesCsvUrl()} download> 导出 CSV</a>
+      </p>
+      {cases.length ? (
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>操作</th>
+              <th>操作前 ROI</th>
+              <th>10 分钟后</th>
+              <th>20 分钟后</th>
+              <th>10 分 Δ</th>
+              <th>判定</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cases.slice(0, 30).map((row, index) => (
+              <tr key={`${row.at}-${index}`}>
+                <td>{String(row.at ?? "")}</td>
+                <td>{String(row.operation ?? "")}</td>
+                <td>{row.before_roi === null ? "--" : Number(row.before_roi).toFixed(2)}</td>
+                <td>{row.after_10m_roi === null ? "--" : Number(row.after_10m_roi).toFixed(2)}</td>
+                <td>{row.after_20m_roi === null ? "--" : Number(row.after_20m_roi).toFixed(2)}</td>
+                <td>
+                  {row.delta_10m === null
+                    ? "--"
+                    : `${Number(row.delta_10m) > 0 ? "+" : ""}${Number(row.delta_10m).toFixed(2)}`}
+                </td>
+                <td>
+                  {{ positive: "✅ 正向", negative: "⚠️ 负向", flat: "➖ 持平", unknown: "数据不足" }[
+                    String(row.verdict ?? "unknown")
+                  ] ?? String(row.verdict ?? "")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="monitor-signal">还没有可追溯的操作流水。</p>
+      )}
 
       <p className="monitor-signal">
         ⚠️ 所有结论都是**观察性相关，不是因果**；样本少于一类的门槛时只标「样本不足」，不给方向。

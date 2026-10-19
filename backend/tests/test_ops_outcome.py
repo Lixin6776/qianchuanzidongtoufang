@@ -9,9 +9,9 @@ BJ = timezone(timedelta(hours=8))
 
 
 def test_classify_operation_covers_common_types():
-    assert classify_operation({"summary": "调控状态：调控中 -> 已暂停"}) == "暂停追投"
-    assert classify_operation({"details": ["调控预算：3000.00元 -> 100.00元"]}) == "降追投预算"
-    assert classify_operation({"details": ["调控预算：1000.00元 -> 3000.00元"]}) == "加追投预算"
+    assert classify_operation({"summary": "操作内容：素材追投，ID：1；调控状态：调控中 -> 已暂停"}) == "暂停追投"
+    assert classify_operation({"summary": "操作内容：素材追投，ID：1；调控预算：3000.00元 -> 100.00元"}) == "降追投预算"
+    assert classify_operation({"summary": "操作内容：素材追投，ID：1；调控预算：1000.00元 -> 3000.00元"}) == "加追投预算"
     assert (
         classify_operation({"type": "新建", "summary": "操作：素材追投；调控预算：2000.00元"})
         == "新建追投"
@@ -42,7 +42,7 @@ def test_compute_ops_outcome_structure_and_sample_guard():
     for i in range(12):
         logs.append(_report(i, spend=1000 + i * 300, gmv=2000 + i * 750))
     # 在第 6 个时刻做一次"加追投预算"
-    logs[6]["platform_operations"] = [_op(6, "调控预算：3000.00元 -> 4000.00元")]
+    logs[6]["platform_operations"] = [_op(6, "操作内容：素材追投，ID：1；调控预算：3000.00元 -> 4000.00元")]
 
     result = compute_ops_outcome(logs)
     assert result["window_minutes"] == 10
@@ -68,3 +68,13 @@ def test_asset_snapshot_store_dedupes_by_day(tmp_path):
     assert items[0]["date"] == "2026-10-17"
     assert items[0]["snapshot"]["operations"] == [2]   # 同天后写覆盖
     assert items[1]["date"] == "2026-10-18"
+
+
+def test_classify_one_click_boost_is_not_budget_change():
+    """一键起量里的"调控预算"不能把它误归成"加追投预算"（真实踩过）。"""
+    assert (
+        classify_operation(
+            {"summary": "操作内容：一键起量，ID：1；调控预算：7500.00元 -> 8000.00元"}
+        )
+        == "一键起量"
+    )

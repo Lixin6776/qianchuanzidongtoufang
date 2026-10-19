@@ -2,6 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 
 vi.mock("../lib/api", () => ({
+  getOpsOutcomeCases: vi.fn().mockResolvedValue([
+    { at: "2026-10-19 12:23", operation: "加追投预算", before_roi: 2.44, after_10m_roi: 1.83, after_20m_roi: null, delta_10m: -0.61, verdict: "negative" }
+  ]),
+  opsCasesCsvUrl: () => "http://127.0.0.1:8000/api/ops-outcome/cases.csv",
   getOpsOutcomeOverview: vi.fn().mockResolvedValue({
     asset_days: 12,
     span: { start: "2026-10-07", end: "2026-10-19" },

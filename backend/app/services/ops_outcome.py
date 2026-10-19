@@ -35,28 +35,39 @@ _LOG_BLOCK = re.compile(r"近 \d+ 分钟有 \d+ 条[：:]\s*\n((?:- .*\n?)+)")
 
 
 def classify_operation(entry: dict) -> str:
-    """把一条平台日志归成可统计的操作类型。认不出的归"其他"，不硬凑。"""
+    """把一条平台日志归成可统计的操作类型。认不出的归"其他"，不硬凑。
+
+    必须先认"操作对象"（素材追投 / 一键起量 / 抢首屏），再认"改了什么" ——
+    否则「一键起量的调控预算 7500→8000」会被误归成「加追投预算」。
+    """
     text = " ".join(
         [str(entry.get("summary") or "")]
         + [str(item) for item in (entry.get("details") or [])]
     )
     kind = str(entry.get("type") or "")
-    if "调控状态" in text:
-        if "-> 已暂停" in text or "调控手动关闭" in text:
-            return "暂停追投"
-        if "-> 调控中" in text:
-            return "开启追投"
-    if "调控预算" in text:
-        match = _BUDGET.search(text)
-        if match:
-            before, after = float(match.group(1)), float(match.group(2))
-            if after > before:
-                return "加追投预算"
-            if after < before:
-                return "降追投预算"
-            return "预算不变"
-        if kind == "新建":
-            return "新建追投"
+
+    if "素材追投" in text:
+        if "调控状态" in text:
+            if "-> 已暂停" in text or "调控手动关闭" in text:
+                return "暂停追投"
+            if "-> 调控中" in text:
+                return "开启追投"
+        if "调控预算" in text:
+            match = _BUDGET.search(text)
+            if match:
+                before, after = float(match.group(1)), float(match.group(2))
+                if after > before:
+                    return "加追投预算"
+                if after < before:
+                    return "降追投预算"
+                return "预算不变"
+            if kind == "新建":
+                return "新建追投"
+        return "追投其他"
+    if "一键起量" in text:
+        return "一键起量"
+    if "搜索抢首屏" in text:
+        return "抢首屏"
     if "成交出价" in text:
         return "出价调整"
     if "综合营销ROI目标" in text:
@@ -65,8 +76,6 @@ def classify_operation(entry: dict) -> str:
         return "加素材"
     if "删除千川星选" in text:
         return "删素材"
-    if "一键起量" in text:
-        return "一键起量"
     return "其他"
 
 
@@ -400,3 +409,85 @@ def compute_asset_overview(
             "cdp_errors": error_count,
         },
     }
+
+
+def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
+    """操作流水：每一笔操作 + 操作前后的边际 ROI（可追溯的原始凭证）。"""
+    reports = []
+    for report in logs:
+        at = _parse_ts(report.get("created_at"))
+        if at is None:
+            continue
+        reports.append({**report, "_at": at.astimezone(BEIJING)})
+    reports.sort(key=lambda item: item["_at"])
+
+    seen: set[tuple[str, str]] = set()
+    events: list[tuple[datetime, str, str]] = []
+    for report in reports:
+        for at, name in _ops_from_report(report):
+            raw = ""
+            for entry in report.get("platform_operations") or []:
+                try:
+                    if _parse_ts(str(entry.get("time") or "").replace(" ", "T")).astimezone(BEIJING) == at:
+                        raw = str(entry.get("summary") or "")
+                        break
+                except Exception:  # noqa: BLE001
+                    continue
+            key = (at.isoformat(), name)
+            if key in seen:
+                continue
+            seen.add(key)
+            events.append((at, name, raw))
+
+    def near(moment: datetime, minutes: int) -> dict | None:
+        target = moment + timedelta(minutes=minutes)
+        best, best_gap = None, 10**9
+        for report in reports:
+            gap = abs((report["_at"] - target).total_seconds())
+            if gap < best_gap:
+                best, best_gap = report, gap
+        return best if best_gap <= NEIGHBOR_TOLERANCE_SECONDS else None
+
+    def wroi(before: dict, after: dict) -> float | None:
+        spend_delta = float(after.get("spend") or 0) - float(before.get("spend") or 0)
+        gmv_delta = float(after.get("gmv") or 0) - float(before.get("gmv") or 0)
+        if spend_delta <= 50:
+            return None
+        return gmv_delta / spend_delta
+
+    rows: list[dict] = []
+    for at, name, raw in events:
+        base = max((r for r in reports if r["_at"] <= at), key=lambda r: r["_at"], default=None)
+        if base is None:
+            continue
+        before_report = near(base["_at"], -FORWARD_MINUTES)
+        after_10 = near(base["_at"], FORWARD_MINUTES)
+        after_20 = near(base["_at"], 2 * FORWARD_MINUTES)
+        pre_roi = wroi(before_report, base) if before_report else None
+        roi_10 = wroi(base, after_10) if after_10 else None
+        roi_20 = wroi(base, after_20) if after_20 else None
+        delta_10 = roi_10 - pre_roi if (pre_roi is not None and roi_10 is not None) else None
+        delta_20 = roi_20 - pre_roi if (pre_roi is not None and roi_20 is not None) else None
+        if delta_10 is None:
+            verdict = "unknown"
+        elif delta_10 > 0:
+            verdict = "positive"
+        elif delta_10 < 0:
+            verdict = "negative"
+        else:
+            verdict = "flat"
+        rows.append(
+            {
+                "at": at.strftime("%Y-%m-%d %H:%M"),
+                "operation": name,
+                "summary": raw or name,
+                "before_roi": round(pre_roi, 4) if pre_roi is not None else None,
+                "after_10m_roi": round(roi_10, 4) if roi_10 is not None else None,
+                "after_20m_roi": round(roi_20, 4) if roi_20 is not None else None,
+                "delta_10m": round(delta_10, 4) if delta_10 is not None else None,
+                "delta_20m": round(delta_20, 4) if delta_20 is not None else None,
+                "verdict": verdict,
+            }
+        )
+    rows.sort(key=lambda item: item["at"], reverse=True)
+    return rows[:limit]

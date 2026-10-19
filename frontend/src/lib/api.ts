@@ -179,6 +179,16 @@ export async function testApiConnection(): Promise<{ ok: boolean; message: strin
   return body;
 }
 
+export async function getOpsOutcomeCases(limit = 100) {
+  const response = await fetch(`${API_BASE}/api/ops-outcome/cases?limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to load ops cases");
+  return response.json();
+}
+
+export function opsCasesCsvUrl(): string {
+  return `${API_BASE}/api/ops-outcome/cases.csv`;
+}
+
 export async function getOpsOutcomeOverview() {
   const response = await fetch(`${API_BASE}/api/ops-outcome/overview`);
   if (!response.ok) throw new Error("Failed to load asset overview");
