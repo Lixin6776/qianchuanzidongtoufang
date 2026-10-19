@@ -189,6 +189,12 @@ export function opsCasesCsvUrl(): string {
   return `${API_BASE}/api/ops-outcome/cases.csv`;
 }
 
+export async function getOpsScenarios() {
+  const response = await fetch(`${API_BASE}/api/ops-outcome/scenarios`);
+  if (!response.ok) throw new Error("Failed to load scenarios");
+  return response.json();
+}
+
 export async function getOpsOutcomeOverview() {
   const response = await fetch(`${API_BASE}/api/ops-outcome/overview`);
   if (!response.ok) throw new Error("Failed to load asset overview");

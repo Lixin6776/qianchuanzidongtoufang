@@ -1072,3 +1072,9 @@ body { font-size: 14px; line-height: 1.5; }
 .asset-trend-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; margin-top: 4px; }
 .asset-trend-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .asset-trend-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* --- 数据资产：决策场景卡 --- */
+.asset-scenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0; }
+.asset-scenario-card { border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 12px; background: var(--color-surface); }
+.asset-scenario-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.asset-scenario-card table { width: 100%; font-size: 12px; }

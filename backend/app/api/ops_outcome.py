@@ -12,6 +12,7 @@ from app.services.ops_outcome import (
     compute_asset_overview,
     compute_op_cases,
     compute_ops_outcome,
+    compute_scenarios,
 )
 
 router = APIRouter(prefix="/api/ops-outcome", tags=["ops-outcome"])
@@ -93,3 +94,10 @@ def ops_outcome_cases_csv(request: Request, limit: int = 2000) -> StreamingRespo
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=ops-cases.csv"},
     )
+
+
+@router.get("/scenarios")
+def ops_outcome_scenarios(request: Request) -> dict:
+    """决策场景 × 操作 × 结果：我现在这个状态，该做什么。"""
+    logs = request.app.state.live_watch_service.store.list_logs(limit=20000)
+    return compute_scenarios(logs)

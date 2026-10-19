@@ -2,6 +2,20 @@ import { render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 
 vi.mock("../lib/api", () => ({
+  getOpsScenarios: vi.fn().mockResolvedValue({
+    scenarios: [
+      {
+        label: "流速加快",
+        control: { n: 131, median_delta: 0.083 },
+        operations: [
+          { operation: "加追投预算", n: 34, median_delta: -0.0001, net_effect: -0.0001, verdict: "neutral" }
+        ]
+      }
+    ],
+    velocity_cutoffs: { low: 75.3, high: 132.3 },
+    min_sample: 20,
+    note: "观察性相关，不是因果。"
+  }),
   getOpsOutcomeCases: vi.fn().mockResolvedValue([
     { at: "2026-10-19 12:23", operation: "加追投预算", before_roi: 2.44, after_10m_roi: 1.83, after_20m_roi: null, delta_10m: -0.61, verdict: "negative" }
   ]),

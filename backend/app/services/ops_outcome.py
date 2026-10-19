@@ -460,6 +460,30 @@ def compute_asset_overview(
     }
 
 
+def _state_of(report: dict, before_window: dict | None) -> dict:
+    """操作时刻的账户状态：流速 / 在线 / CPM / 曝光观看率 / 追投占比。"""
+    velocity = None
+    if before_window is not None:
+        span = (_parse_ts(report.get("created_at")) - _parse_ts(before_window.get("created_at")))
+        minutes = span.total_seconds() / 60 if span else 0
+        if minutes > 0:
+            velocity = (
+                float(report.get("spend") or 0) - float(before_window.get("spend") or 0)
+            ) / minutes
+    split = report.get("spend_split") or {}
+    basic = float(split.get("basic_spend") or 0)
+    assist = float(split.get("assist_spend") or 0)
+    assist_share = assist / (basic + assist) if (basic + assist) > 0 else None
+    return {
+        "velocity": round(velocity, 1) if velocity is not None else None,
+        "online_viewers": report.get("online_viewers"),
+        "cpm": round(float(report.get("cpm")), 2) if report.get("cpm") is not None else None,
+        "exposure_view_rate": report.get("exposure_view_rate"),
+        "roi": report.get("roi"),
+        "assist_share": round(assist_share, 3) if assist_share is not None else None,
+    }
+
+
 def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
     """操作流水：每一笔操作 + 操作前后的边际 ROI（可追溯的原始凭证）。"""
     try:
@@ -578,6 +602,7 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
                 "material_id": meta.get("material_id") or "",
                 "task_name": meta.get("task_name") or "",
                 "material_name": material_names.get(str(meta.get("material_id") or ""), ""),
+                "state": _state_of(base, before_report),
                 "budget": meta.get("budget"),
                 "roi_target": meta.get("roi_target"),
                 "optimization_goal": meta.get("optimization_goal") or "",
@@ -586,3 +611,131 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
         )
     rows.sort(key=lambda item: item["at"], reverse=True)
     return rows[:limit]
+
+
+def compute_scenarios(logs: Iterable[dict], min_sample: int | None = None) -> dict:
+    """决策场景 × 操作 × 结果。
+
+    运营的真实问题不是"哪个操作平均好"，而是"**我现在这个状态**下该做什么"。
+    所以这里按流速分档，各档内再比"有操作 vs 无操作"，给出每个操作在**该状态下**的净效应。
+    """
+    threshold = int(min_sample or MIN_SAMPLE)
+    reports = []
+    for report in logs:
+        at = _parse_ts(report.get("created_at"))
+        if at is None or report.get("source") != "cdp":
+            continue
+        reports.append({**report, "_at": at.astimezone(BEIJING)})
+    reports.sort(key=lambda item: item["_at"])
+
+    op_events: list[tuple[datetime, str, dict]] = []
+    seen: set[tuple[str, str]] = set()
+    for report in reports:
+        for at, name, meta in _ops_from_report(report):
+            key = (at.isoformat(), name)
+            if key in seen:
+                continue
+            seen.add(key)
+            op_events.append((at, name, meta))
+
+    def near(moment: datetime, minutes: int) -> dict | None:
+        target = moment + timedelta(minutes=minutes)
+        best, best_gap = None, 10**9
+        for report in reports:
+            gap = abs((report["_at"] - target).total_seconds())
+            if gap < best_gap:
+                best, best_gap = report, gap
+        return best if best_gap <= NEIGHBOR_TOLERANCE_SECONDS else None
+
+    def wroi(before: dict, after: dict) -> float | None:
+        spend_delta = float(after.get("spend") or 0) - float(before.get("spend") or 0)
+        gmv_delta = float(after.get("gmv") or 0) - float(before.get("gmv") or 0)
+        if spend_delta <= 50:
+            return None
+        return gmv_delta / spend_delta
+
+    rows = []
+    for report in reports:
+        pre = near(report["_at"], -FORWARD_MINUTES)
+        post = near(report["_at"], FORWARD_MINUTES)
+        if pre is None or post is None:
+            continue
+        pre_roi = wroi(pre, report)
+        post_roi = wroi(report, post)
+        if pre_roi is None or post_roi is None:
+            continue
+        velocity = (float(report.get("spend") or 0) - float(pre.get("spend") or 0)) / 10.0
+        names = {
+            name
+            for at, name, _meta in op_events
+            if abs((report["_at"] - at).total_seconds()) <= OP_WINDOW_SECONDS
+        }
+        rows.append(
+            {
+                "delta": post_roi - pre_roi,
+                "velocity": velocity,
+                "names": names,
+                "has_op": bool(names),
+            }
+        )
+
+    if len(rows) < 6:
+        return {"scenarios": [], "min_sample": threshold, "note": "样本不足"}
+
+    velocities = sorted(row["velocity"] for row in rows)
+    q1, q2 = statistics.quantiles(velocities, n=3)[0], statistics.quantiles(velocities, n=3)[1]
+
+    def bucket(value: float) -> str:
+        if value < q1:
+            return "流速偏低"
+        if value < q2:
+            return "流速正常"
+        return "流速加快"
+
+    scenarios = []
+    for label in ("流速偏低", "流速正常", "流速加快"):
+        group = [row for row in rows if bucket(row["velocity"]) == label]
+        control = [row["delta"] for row in group if not row["has_op"]]
+        if not control:
+            continue
+        baseline = statistics.median(control)
+        operations = []
+        for name in {n for row in group for n in row["names"]}:
+            treated = [
+                row["delta"]
+                for row in group
+                if row["names"] == {name}
+            ]
+            if not treated:
+                continue
+            median = statistics.median(treated)
+            net = median - baseline
+            verdict = (
+                "insufficient"
+                if len(treated) < threshold
+                else ("positive" if net > 0.1 else "negative" if net < -0.1 else "neutral")
+            )
+            operations.append(
+                {
+                    "operation": name,
+                    "n": len(treated),
+                    "median_delta": round(median, 4),
+                    "net_effect": round(net, 4),
+                    "verdict": verdict,
+                }
+            )
+        operations.sort(key=lambda item: (item["verdict"] == "insufficient", -abs(item["net_effect"])))
+        scenarios.append(
+            {
+                "label": label,
+                "control": {"n": len(control), "median_delta": round(baseline, 4)},
+                "operations": operations,
+            }
+        )
+
+    return {
+        "scenarios": scenarios,
+        "velocity_cutoffs": {"low": round(q1, 1), "high": round(q2, 1)},
+        "min_sample": threshold,
+        "note": "观察性相关，不是因果；只统计'此刻只有一种操作'的样本。",
+    }

@@ -1,7 +1,33 @@
 import { useEffect, useState } from "react";
 
-import { getOpsOutcomeCases, getOpsOutcomeOverview, opsCasesCsvUrl } from "../lib/api";
+import { getOpsOutcomeCases, getOpsOutcomeOverview, getOpsScenarios, opsCasesCsvUrl } from "../lib/api";
 import { OpsOutcomePanel } from "./OpsOutcomePanel";
+
+type ScenarioOp = {
+  operation: string;
+  n: number;
+  median_delta: number | null;
+  net_effect: number | null;
+  verdict: string;
+};
+type Scenario = {
+  label: string;
+  control: { n: number; median_delta: number | null };
+  operations: ScenarioOp[];
+};
+type ScenarioPayload = {
+  scenarios: Scenario[];
+  velocity_cutoffs?: { low: number; high: number };
+  min_sample: number;
+  note: string;
+};
+
+const VERDICT_LABEL: Record<string, string> = {
+  positive: "✅ 有效",
+  negative: "⚠️ 负向",
+  neutral: "➖ 中性",
+  insufficient: "样本不足"
+};
 
 type Overview = {
   asset_days: number;
@@ -30,6 +56,7 @@ type Overview = {
 export function DataAssetPanel() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [cases, setCases] = useState<Array<Record<string, unknown>>>([]);
+  const [scenarios, setScenarios] = useState<ScenarioPayload | null>(null);
 
   useEffect(() => {
     getOpsOutcomeOverview()
@@ -38,6 +65,9 @@ export function DataAssetPanel() {
     getOpsOutcomeCases(100)
       .then((value) => setCases(value as Array<Record<string, unknown>>))
       .catch(() => setCases([]));
+    getOpsScenarios()
+      .then((value) => setScenarios(value as ScenarioPayload))
+      .catch(() => setScenarios(null));
   }, []);
 
   return (
@@ -88,6 +118,49 @@ export function DataAssetPanel() {
               ? "　⚠️ 有效率偏低，本页结论仅供参考"
               : ""}
           </p>
+        </>
+      ) : null}
+
+      {scenarios?.scenarios?.length ? (
+        <>
+          <h4 style={{ marginTop: 18 }}>决策场景：我现在这个状态，该做什么</h4>
+          <p className="monitor-signal">
+            按流速分档（偏低 &lt; {scenarios.velocity_cutoffs?.low ?? "--"} ｜ 加快 ≥{" "}
+            {scenarios.velocity_cutoffs?.high ?? "--"} ¥/分钟），各档内比"有操作 vs 无操作"。
+          </p>
+          <div className="asset-scenarios">
+            {scenarios.scenarios.map((scenario) => (
+              <section className="asset-scenario-card" key={scenario.label}>
+                <header>
+                  <strong>{scenario.label}</strong>
+                  <span className="monitor-signal">
+                    对照 n={scenario.control.n} · 基准 {scenario.control.median_delta === null ? "--" : scenario.control.median_delta.toFixed(2)}
+                  </span>
+                </header>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>操作</th>
+                      <th>n</th>
+                      <th>净效应</th>
+                      <th>判定</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scenario.operations.map((op) => (
+                      <tr key={op.operation}>
+                        <td>{op.operation}</td>
+                        <td>{op.n}</td>
+                        <td>{op.net_effect === null ? "--" : `${op.net_effect > 0 ? "+" : ""}${op.net_effect.toFixed(2)}`}</td>
+                        <td>{VERDICT_LABEL[op.verdict] ?? op.verdict}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            ))}
+          </div>
+          <p className="monitor-signal">⚠️ {scenarios.note}</p>
         </>
       ) : null}
 
