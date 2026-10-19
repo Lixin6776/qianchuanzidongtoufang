@@ -87,16 +87,45 @@ def _parse_ts(value) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=BEIJING)
 
 
-def _ops_from_report(report: dict) -> list[tuple[datetime, str]]:
-    """从一条盯盘记录里取出操作。
+_TASK_ID = re.compile(r"任务ID[：:]\s*(\d{6,})")
+# 修改型日志里任务 ID 写成「操作内容：素材追投，ID：xxx」（没写"任务ID"）
+_OP_CONTENT_TASK_ID = re.compile(r"操作内容[：:]\s*素材追投[，,]\s*ID[：:]\s*(\d{6,})")
+_MATERIAL_ID = re.compile(r"素材ID[：:]\s*(\d{6,})")
+
+
+def _op_meta(entry: dict) -> dict:
+    """从一条日志里抽出：任务ID / 素材ID / 任务名称（有就抽，没有就空）。"""
+    lines = [str(entry.get("summary") or "")] + [
+        str(item) for item in (entry.get("details") or [])
+    ]
+    meta: dict = {}
+    for line in lines:
+        match = _TASK_ID.search(line) or _OP_CONTENT_TASK_ID.search(line)
+        if match and "task_id" not in meta:
+            meta["task_id"] = match.group(1)
+        match = _MATERIAL_ID.search(line)
+        if match and "material_id" not in meta:
+            meta["material_id"] = match.group(1)
+        if "任务名称" in line and "task_name" not in meta:
+            part = line.split("任务名称", 1)[1].lstrip("：: ")
+            part = part.split("；")[0].split(";")[0].split(" -> ")[0].strip()
+            if part:
+                meta["task_name"] = part
+    return meta
+
+
+def _ops_from_report(report: dict) -> list[tuple[datetime, str, dict]]:
+    """从一条盯盘记录里取出操作（含任务/素材身份）。
 
     新报告直接用结构化的 platform_operations；老报告回退去解析 markdown。
     """
-    out: list[tuple[datetime, str]] = []
+    out: list[tuple[datetime, str, dict]] = []
     for entry in report.get("platform_operations") or []:
         at = _parse_ts(str(entry.get("time") or "").replace(" ", "T"))
         if at is not None:
-            out.append((at.astimezone(BEIJING), classify_operation(entry)))
+            out.append(
+                (at.astimezone(BEIJING), classify_operation(entry), _op_meta(entry))
+            )
     if out:
         return out
 
@@ -133,7 +162,8 @@ def _ops_from_report(report: dict) -> list[tuple[datetime, str]]:
                     at = None
         if at is None:
             continue
-        out.append((at, classify_operation({"summary": text, "type": "新建" if "新建" in text[:30] else "修改"})))
+        entry = {"summary": text, "type": "新建" if "新建" in text[:30] else "修改"}
+        out.append((at, classify_operation(entry), _op_meta(entry)))
     return out
 
 
@@ -159,14 +189,14 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
 
     # 去重操作时刻（同一条日志会在多个 tick 里重复出现）
     seen: set[tuple[str, str]] = set()
-    op_events: list[tuple[datetime, str]] = []
+    op_events: list[tuple[datetime, str, dict]] = []
     for report in reports:
-        for at, name in _ops_from_report(report):
+        for at, name, meta in _ops_from_report(report):
             key = (at.isoformat(), name)
             if key in seen:
                 continue
             seen.add(key)
-            op_events.append((at, name))
+            op_events.append((at, name, meta))
 
     def near(moment: datetime, minutes: int) -> dict | None:
         target = moment + timedelta(minutes=minutes)
@@ -180,7 +210,7 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
     def has_op_near(moment: datetime) -> bool:
         return any(
             abs((moment - op_at).total_seconds()) <= OP_WINDOW_SECONDS
-            for op_at, _ in op_events
+            for op_at, _name, _meta in op_events
         )
 
     rows = []
@@ -226,7 +256,7 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
             continue
         names = {
             name
-            for at, name in op_events
+            for at, name, _meta in op_events
             if abs((row["at"] - at).total_seconds()) <= OP_WINDOW_SECONDS
         }
         # 只统计"此刻只有一种操作"的样本：操作扎堆时无法区分是哪一个起的作用，
@@ -421,10 +451,24 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
         reports.append({**report, "_at": at.astimezone(BEIJING)})
     reports.sort(key=lambda item: item["_at"])
 
-    seen: set[tuple[str, str]] = set()
-    events: list[tuple[datetime, str, str]] = []
+    # 任务ID -> 素材ID：只有「新建」日志里同时带这两个，用它回填「暂停/调预算」
+    task_materials: dict[str, str] = {}
+    task_names: dict[str, str] = {}
     for report in reports:
-        for at, name in _ops_from_report(report):
+        for entry in report.get("platform_operations") or []:
+            meta = _op_meta(entry)
+            task_id = meta.get("task_id")
+            if not task_id:
+                continue
+            if meta.get("material_id"):
+                task_materials.setdefault(task_id, meta["material_id"])
+            if meta.get("task_name"):
+                task_names.setdefault(task_id, meta["task_name"])
+
+    seen: set[tuple[str, str]] = set()
+    events: list[tuple[datetime, str, str, dict]] = []
+    for report in reports:
+        for at, name, meta in _ops_from_report(report):
             raw = ""
             for entry in report.get("platform_operations") or []:
                 try:
@@ -437,7 +481,21 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
             if key in seen:
                 continue
             seen.add(key)
-            events.append((at, name, raw))
+            task_id = str(meta.get("task_id") or "")
+            material_id = str(meta.get("material_id") or "") or task_materials.get(task_id, "")
+            task_name = str(meta.get("task_name") or "") or task_names.get(task_id, "")
+            events.append(
+                (
+                    at,
+                    name,
+                    raw,
+                    {
+                        "task_id": task_id,
+                        "material_id": material_id,
+                        "task_name": task_name,
+                    },
+                )
+            )
 
     def near(moment: datetime, minutes: int) -> dict | None:
         target = moment + timedelta(minutes=minutes)
@@ -456,7 +514,7 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
         return gmv_delta / spend_delta
 
     rows: list[dict] = []
-    for at, name, raw in events:
+    for at, name, raw, meta in events:
         base = max((r for r in reports if r["_at"] <= at), key=lambda r: r["_at"], default=None)
         if base is None:
             continue
@@ -487,6 +545,9 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
                 "delta_10m": round(delta_10, 4) if delta_10 is not None else None,
                 "delta_20m": round(delta_20, 4) if delta_20 is not None else None,
                 "verdict": verdict,
+                "task_id": meta.get("task_id") or "",
+                "material_id": meta.get("material_id") or "",
+                "task_name": meta.get("task_name") or "",
             }
         )
     rows.sort(key=lambda item: item["at"], reverse=True)

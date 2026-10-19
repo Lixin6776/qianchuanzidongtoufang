@@ -104,6 +104,7 @@ export function DataAssetPanel() {
             <tr>
               <th>时间</th>
               <th>操作</th>
+              <th>任务 / 素材</th>
               <th>操作前 ROI</th>
               <th>10 分钟后</th>
               <th>20 分钟后</th>
@@ -116,6 +117,12 @@ export function DataAssetPanel() {
               <tr key={`${row.at}-${index}`}>
                 <td>{String(row.at ?? "")}</td>
                 <td>{String(row.operation ?? "")}</td>
+                <td>
+                  {String(row.task_name ?? "") || "--"}
+                  {row.material_id ? (
+                    <span className="monitor-signal"> · 素材 {String(row.material_id)}</span>
+                  ) : null}
+                </td>
                 <td>{row.before_roi === null ? "--" : Number(row.before_roi).toFixed(2)}</td>
                 <td>{row.after_10m_roi === null ? "--" : Number(row.after_10m_roi).toFixed(2)}</td>
                 <td>{row.after_20m_roi === null ? "--" : Number(row.after_20m_roi).toFixed(2)}</td>
