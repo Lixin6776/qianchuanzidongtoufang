@@ -6,6 +6,7 @@ import { ChatPanel, type ActionPreview, type ChatReply } from "./components/Chat
 import { LiveReviewList, type LiveReview } from "./components/LiveReviewList";
 import { LiveWatchPanel } from "./components/LiveWatchPanel";
 import { OnboardingGuide } from "./components/OnboardingGuide";
+import { DataAssetPanel } from "./components/DataAssetPanel";
 import { OpsChatPanel } from "./components/OpsChatPanel";
 import { MaterialAnalysisList, type MaterialAnalysis } from "./components/MaterialAnalysisList";
 import { FeishuConnectionPanel } from "./components/FeishuConnectionPanel";
@@ -50,7 +51,7 @@ type ExecutionJob = {
   created_at: string;
 };
 
-type ToolWindow = "live_watch" | "decisions" | "jobs" | "llm" | "api" | "learning" | "evaluation" | "feishu" | "advanced";
+type ToolWindow = "live_watch" | "decisions" | "jobs" | "llm" | "api" | "learning" | "evaluation" | "feishu" | "advanced" | "asset";
 
 const tools: Array<{ id: ToolWindow; label: string }> = [
   { id: "live_watch", label: "直播盯盘" },
@@ -60,7 +61,8 @@ const tools: Array<{ id: ToolWindow; label: string }> = [
   { id: "learning", label: "直播复盘" },
   { id: "evaluation", label: "素材分析" },
   { id: "feishu", label: "飞书" },
-  { id: "advanced", label: "数据源" }
+  { id: "advanced", label: "数据源" },
+  { id: "asset", label: "数据资产" }
 ];
 
 export default function App() {
@@ -232,6 +234,9 @@ export default function App() {
       );
     }
     if (activeWindow === "feishu") return <FeishuConnectionPanel />;
+    if (activeWindow === "asset") {
+      return <DataAssetPanel />;
+    }
     if (activeWindow === "advanced") {
       // 「数据源」：CDP 与 API 两条读取链路统一在这里管
       return <DataSourcePanel />;
