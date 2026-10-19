@@ -186,7 +186,9 @@ def test_material_analysis_uses_per_material_metrics():
     assert "### 一、每日素材消耗概况" in markdown
     assert "### 二、新素材情况" in markdown
     assert "### 三、跑量素材较上一日变化" in markdown
-    assert "### 四、素材产出方向" in markdown
+    assert "### 四、素材投放视角（按动作分档）" in markdown
+    assert "### 五、素材产出方向" in markdown
+    assert "点击率" in markdown
     assert "高转化痛点开场" in markdown
     assert "泛品牌口播" in markdown
     assert "长期策略约束" in markdown
@@ -556,7 +558,7 @@ async def test_material_analysis_job_reuses_fresh_report(tmp_path):
             "id": "fresh",
             "date": "2026-10-14",
             "metrics": {
-                "report_schema": 3,
+                "report_schema": 4,
                 "material_count": 50,
                 "sampled_material_count": 50,
                 "total_material_spend": 28756.76,

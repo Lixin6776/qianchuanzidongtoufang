@@ -165,7 +165,7 @@ async def run_material_analysis_job(
     existing_metrics = (existing.get("metrics") or {}) if existing is not None else {}
     # 老版本报告（report_schema != 2）用的是"前 N 条明细求和当总消耗"+"最近一次盯盘读数当账户口径"，
     # 命中就重算一次，用上服务端精确总额 + 目标日读数，算完自愈。
-    existing_is_stale = existing is not None and existing_metrics.get("report_schema") != 3
+    existing_is_stale = existing is not None and existing_metrics.get("report_schema") != 4
     if (
         existing is not None
         and int(existing_metrics.get("material_count", 0) or 0) > 0
@@ -211,7 +211,7 @@ async def catch_up_material_analysis(application: FastAPI) -> None:
             for item in store.list_analyses()
             if int((item.get("metrics") or {}).get("material_count", 0) or 0) > 0
             # 老版本报告（report_schema != 2）不算"已有"，让它重算一次
-            and (item.get("metrics") or {}).get("report_schema") == 3
+            and (item.get("metrics") or {}).get("report_schema") == 4
         }
         for offset in range(1, MATERIAL_ANALYSIS_CATCH_UP_DAYS + 1):
             target = today.date() - timedelta(days=offset)

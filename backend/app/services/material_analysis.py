@@ -1,5 +1,6 @@
 import inspect
 import json
+import statistics
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -81,16 +82,117 @@ def _generic_directions(roi_met: bool | None) -> tuple[str, list[str]]:
     )
 
 
+def _placement_view(materials: list[MaterialMetric], roi_target: float | None) -> str:
+    """素材投放视角：按"该做什么动作"分档，而不是只罗列数字。"""
+    spent = [item for item in materials if item.spend > 0]
+    if not spent:
+        return ""
+    total = sum(item.spend for item in spent)
+    ranked = sorted(spent, key=lambda item: item.spend, reverse=True)
+    cutoff = max(500.0, total * 0.05)
+
+    def share(count: int) -> float:
+        return sum(item.spend for item in ranked[:count]) / total * 100 if total else 0.0
+
+    ctrs = [item.ctr for item in spent if item.ctr is not None]
+    convs = [item.conversion_rate for item in spent if item.conversion_rate is not None]
+    ctr_median = statistics.median(ctrs) if ctrs else None
+    conv_median = statistics.median(convs) if convs else None
+
+    running = [item for item in spent if item.spend >= cutoff]
+    winners = [
+        item for item in running
+        if roi_target is not None and item.roi is not None and item.roi >= roi_target
+    ]
+    losers = [
+        item for item in running
+        if roi_target is not None and item.roi is not None and item.roi < roi_target * 0.8
+    ]
+    high_click_low_conv = [
+        item for item in spent
+        if ctr_median is not None and conv_median is not None
+        and item.ctr is not None and item.conversion_rate is not None
+        and item.ctr >= ctr_median and item.conversion_rate < conv_median
+    ]
+    efficient_low_spend = [
+        item for item in spent
+        if roi_target is not None and item.roi is not None
+        and item.roi >= roi_target and item.spend < cutoff
+    ]
+
+    def block(title: str, items: list[MaterialMetric], action: str) -> list[str]:
+        lines = [f"**{title}**"]
+        if not items:
+            lines.append("- 暂无。")
+            lines.append("")
+            return lines
+        for item in items[:5]:
+            lines.append(
+                f"- {_short_name(item.name)}：消耗 {_currency(item.spend)} / ROI {_ratio(item.roi)}"
+                f" / 点击率 {_percentage(item.ctr)} / 转化率 {_percentage(item.conversion_rate)}"
+                f" / 订单 {item.orders}"
+            )
+        lines.append(f"- **动作**：{action}")
+        lines.append("")
+        return lines
+
+    lines = ["### 四、素材投放视角（按动作分档）", ""]
+    lines.append(
+        f"**消耗集中度**：Top1 {share(1):.1f}% · Top3 {share(3):.1f}% · Top5 {share(5):.1f}%"
+    )
+    if share(3) >= 60:
+        lines.append(
+            "- ⚠️ 前 3 条素材吃掉六成以上消耗 —— 过度依赖少数素材，"
+            "一旦其中一条衰退，整体流速会明显掉。需要提前准备替代素材。"
+        )
+    elif share(3) <= 30:
+        lines.append("- 消耗分散，单条素材影响有限；重点看整体结构，而不是押注某一条。")
+    else:
+        lines.append("- 消耗集中度中等，属于正常范围。")
+    lines.append("")
+    lines.extend(
+        block(
+            "① 跑量 + ROI 达标（可加量 / 复制结构）",
+            winners,
+            "优先复制这类素材的前 3 秒钩子和表达结构，小幅加量；一次只改一个变量。",
+        )
+    )
+    lines.extend(
+        block(
+            "② 跑量 + ROI 不达标（要收缩 / 替换）",
+            losers,
+            "先不要直接删（会损失探索和跑量）；优先降追投目标或换素材测试，"
+            "并核对是素材问题还是承接问题。",
+        )
+    )
+    lines.extend(
+        block(
+            "③ 高点击低转化（素材吸引人，但承接没接住）",
+            high_click_low_conv,
+            "问题多半不在素材本身：检查落地页 / 价格机制 / 货品匹配；"
+            "必要时换承接话术，而不是急着换素材。",
+        )
+    )
+    lines.extend(
+        block(
+            "④ 高效低量（值得加量测试）",
+            efficient_low_spend,
+            "ROI 达标但消耗不大 —— 用新建追投或小幅加预算给它量，观察 10~20 分钟 ROI 是否守住。",
+        )
+    )
+    return "\n".join(lines)
+
+
 def _material_table(materials: list[MaterialMetric]) -> str:
     lines = [
-        "| 素材 | 消耗 | 综合ROI | 成交金额 | 订单 | 转化率 |",
-        "| --- | ---: | ---: | ---: | ---: | ---: |",
+        "| 素材 | 消耗 | 综合ROI | 成交金额 | 订单 | 点击率 | 转化率 |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for item in materials[:8]:
         lines.append(
             f"| {_safe_cell(_short_name(item.name))} | {_currency(item.spend)} | "
             f"{_ratio(item.roi)} | {_currency(item.gmv)} | {item.orders} | "
-            f"{_percentage(item.conversion_rate)} |"
+            f"{_percentage(item.ctr)} | {_percentage(item.conversion_rate)} |"
         )
     return "\n".join(lines)
 
@@ -314,7 +416,7 @@ def _material_analysis(
     )
 
     summary = {
-        "report_schema": 3,
+        "report_schema": 4,
         "material_count": len(materials),
         "sampled_material_count": len(spent),
         "sampled_material_spend": sample_spend,
@@ -378,7 +480,7 @@ def build_material_analysis(
     else:
         assessment, directions = _generic_directions(roi_met)
         summary = {
-            "report_schema": 3,
+            "report_schema": 4,
             "material_count": 0,
             "sampled_material_count": 0,
             "sampled_material_spend": 0.0,
@@ -401,6 +503,7 @@ def build_material_analysis(
 
     metrics_payload = metrics.model_dump(mode="json") if metrics is not None else {}
     metrics_payload.update(summary)
+    placement_section = _placement_view(list(materials or []), roi_target)
     report = f"""## 素材分析报告｜{analysis_date.isoformat()}
 
 ### 一、每日素材消耗概况
@@ -430,11 +533,13 @@ def build_material_analysis(
 
 {change_section}
 
-### 四、素材产出方向
+{placement_section}
+
+### 五、素材产出方向
 
 {chr(10).join(f"- {item}" for item in directions)}
 
-### 五、执行提醒
+### 六、执行提醒
 
 - 本报告只提供素材产出和调整方向，不自动上传、替换或绑定素材。
 - 素材选择和预算调整属于账户写操作，必须先预览并由用户确认。
