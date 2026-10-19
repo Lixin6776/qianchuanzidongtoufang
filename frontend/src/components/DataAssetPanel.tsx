@@ -118,9 +118,13 @@ export function DataAssetPanel() {
                 <td>{String(row.at ?? "")}</td>
                 <td>{String(row.operation ?? "")}</td>
                 <td>
-                  {String(row.task_name ?? "") || "--"}
+                  <div>
+                    {String(row.material_name ?? "") ||
+                      String(row.task_name ?? "") ||
+                      "--"}
+                  </div>
                   {row.material_id ? (
-                    <span className="monitor-signal"> · 素材 {String(row.material_id)}</span>
+                    <div className="monitor-signal">素材ID {String(row.material_id)}</div>
                   ) : null}
                 </td>
                 <td>{row.before_roi === null ? "--" : Number(row.before_roi).toFixed(2)}</td>

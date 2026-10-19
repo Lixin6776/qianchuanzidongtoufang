@@ -12,6 +12,7 @@ from playwright.async_api import async_playwright
 
 from app.execution.cdp.page_probe import validate_cdp_endpoint
 from app.services.material_analysis import MaterialMetric
+from app.services.material_names import MaterialNameStore
 
 MATERIAL_DATASET_KEY = "overall_roi_promotion_matrial_tab_video_live"
 DETAIL_PAGE_MARKER = "overall-prom/detail"
@@ -538,6 +539,8 @@ class CdpMaterialReader:
                 self._remember_page_url(page.url)
                 payload = await self._post_material_list(page, template, analysis_date, limit)
                 materials = parse_material_list_response(payload)
+                # 顺手把「素材ID → 素材名」记进本地名册，供操作日志归因
+                MaterialNameStore().upsert(materials)
                 stats = (payload.get("data") or {}).get("statsData") or {}
                 totals = stats.get("totals") if isinstance(stats, dict) else None
                 total_spend = _number(totals, "statCostForRoi2") if isinstance(totals, dict) else None
@@ -694,9 +697,12 @@ class CdpMaterialReader:
                 except (TypeError, ValueError):
                     material_count = 0
                 materials = []
-                for item in parse_material_list_response(payload):
+                parsed_materials = parse_material_list_response(payload)
+                MaterialNameStore().upsert(parsed_materials)
+                for item in parsed_materials:
                     materials.append(
                         {
+                            "material_id": item.material_id,
                             "name": item.name,
                             "spend": item.spend,
                             "roi": item.roi,

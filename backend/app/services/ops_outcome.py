@@ -443,6 +443,12 @@ def compute_asset_overview(
 
 def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
     """操作流水：每一笔操作 + 操作前后的边际 ROI（可追溯的原始凭证）。"""
+    try:
+        from app.services.material_names import MaterialNameStore
+
+        material_names = MaterialNameStore().load()
+    except Exception:  # noqa: BLE001
+        material_names = {}
     reports = []
     for report in logs:
         at = _parse_ts(report.get("created_at"))
@@ -548,6 +554,7 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
                 "task_id": meta.get("task_id") or "",
                 "material_id": meta.get("material_id") or "",
                 "task_name": meta.get("task_name") or "",
+                "material_name": material_names.get(str(meta.get("material_id") or ""), ""),
             }
         )
     rows.sort(key=lambda item: item["at"], reverse=True)

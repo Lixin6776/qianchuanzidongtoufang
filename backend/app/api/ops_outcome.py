@@ -64,7 +64,7 @@ def ops_outcome_cases_csv(request: Request, limit: int = 2000) -> StreamingRespo
     buffer.write("\ufeff")  # Excel 识别 UTF-8
     writer = csv.writer(buffer)
     writer.writerow(
-        ["时间", "操作", "操作前边际ROI", "10分后ROI", "20分后ROI", "10分Δ", "20分Δ", "判定", "原始记录"]
+        ["时间", "操作", "素材名", "素材ID", "任务名", "操作前边际ROI", "10分后ROI", "20分后ROI", "10分Δ", "20分Δ", "判定", "原始记录"]
     )
     verdict_map = {"positive": "正向", "negative": "负向", "flat": "持平", "unknown": "无数据"}
     for row in rows:
@@ -72,6 +72,9 @@ def ops_outcome_cases_csv(request: Request, limit: int = 2000) -> StreamingRespo
             [
                 row["at"],
                 row["operation"],
+                row.get("material_name", ""),
+                row.get("material_id", ""),
+                row.get("task_name", ""),
                 row["before_roi"],
                 row["after_10m_roi"],
                 row["after_20m_roi"],

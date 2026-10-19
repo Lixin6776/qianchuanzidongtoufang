@@ -78,3 +78,24 @@ def test_classify_one_click_boost_is_not_budget_change():
         )
         == "一键起量"
     )
+
+
+def test_material_name_store_upsert_and_lookup(tmp_path):
+    """素材ID→素材名：落盘后能查回来（操作日志归因要用）。"""
+    from app.services.material_names import MaterialNameStore
+
+    store = MaterialNameStore(tmp_path / "names.json")
+    changed = store.upsert(
+        [
+            {"material_id": "111", "name": "素材A"},
+            {"material_id": "222", "name": "素材B"},
+        ]
+    )
+    assert changed == 2
+    assert store.name_of("111") == "素材A"
+    assert store.name_of("999") == ""
+
+    # 同名不重复写；改名会更新
+    assert store.upsert([{"material_id": "111", "name": "素材A"}]) == 0
+    assert store.upsert([{"material_id": "111", "name": "素材A-改"}]) == 1
+    assert store.name_of("111") == "素材A-改"
