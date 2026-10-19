@@ -42,6 +42,80 @@ function signed(value: number | null) {
   return value === null ? "--" : `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
 }
 
+const SERIES_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899"];
+
+/**
+ * 资产趋势折线：每种操作的净效应随每日快照怎么变。
+ * 手写 SVG，不引图表库（保持安装零依赖）。
+ */
+function TrendChart({ snapshots }: { snapshots: Array<{ date: string; snapshot: Payload }> }) {
+  if (snapshots.length < 2) return null;
+
+  const names = Array.from(
+    new Set(snapshots.flatMap((item) => item.snapshot.operations.map((row) => row.operation)))
+  );
+  const values = snapshots.flatMap((item) =>
+    item.snapshot.operations
+      .map((row) => row.net_effect)
+      .filter((v): v is number => v !== null)
+  );
+  if (!values.length) return null;
+
+  const W = 640;
+  const H = 220;
+  const PAD = 36;
+  const min = Math.min(0, ...values) - 0.05;
+  const max = Math.max(0, ...values) + 0.05;
+  const span = max - min || 1;
+  const x = (index: number) => PAD + (index * (W - 2 * PAD)) / (snapshots.length - 1);
+  const y = (value: number) => H - PAD - ((value - min) / span) * (H - 2 * PAD);
+  const zeroY = y(0);
+
+  return (
+    <div className="asset-trend-chart">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="资产趋势折线图">
+        <line x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY} stroke="#cbd5e1" strokeDasharray="4 4" />
+        {snapshots.map((item, index) => (
+          <text key={item.date} x={x(index)} y={H - 12} fontSize="11" textAnchor="middle" fill="#64748b">
+            {item.date.slice(5)}
+          </text>
+        ))}
+        {names.map((name, seriesIndex) => {
+          const points = snapshots
+            .map((item, index) => {
+              const row = item.snapshot.operations.find((op) => op.operation === name);
+              if (!row || row.net_effect === null) return null;
+              return `${x(index)},${y(row.net_effect)}`;
+            })
+            .filter((point): point is string => point !== null);
+          if (points.length < 2) return null;
+          const color = SERIES_COLORS[seriesIndex % SERIES_COLORS.length];
+          return (
+            <g key={name}>
+              <polyline points={points.join(" ")} fill="none" stroke={color} strokeWidth="2" />
+              {points.map((point, index) => {
+                const [px, py] = point.split(",");
+                return <circle key={index} cx={px} cy={py} r="3" fill={color} />;
+              })}
+            </g>
+          );
+        })}
+      </svg>
+      <div className="asset-trend-legend">
+        {names.map((name, index) => (
+          <span key={name}>
+            <i style={{ background: SERIES_COLORS[index % SERIES_COLORS.length] }} />
+            {name}
+          </span>
+        ))}
+      </div>
+      <p className="monitor-signal">
+        纵轴 = 净效应（已扣掉账户自然漂移）。只看趋势方向，别抠小数点。
+      </p>
+    </div>
+  );
+}
+
 /**
  * 《操作反馈表》：你手动做的操作，被数据正向反馈了吗？
  *
@@ -151,6 +225,8 @@ export function OpsOutcomePanel() {
       ) : (
         <p className="monitor-signal">还没有快照，每天 08:10 自动存一份。</p>
       )}
+      <TrendChart snapshots={snapshots} />
+
       {trend.length ? (
         <table>
           <thead>

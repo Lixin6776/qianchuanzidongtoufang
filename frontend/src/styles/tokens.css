@@ -1065,3 +1065,10 @@ body { font-size: 14px; line-height: 1.5; }
 }
 .asset-card span { font-size: 12px; color: var(--color-muted, #888); }
 .asset-card strong { font-size: 20px; }
+
+/* --- 数据资产：趋势折线 --- */
+.asset-trend-chart { margin: 10px 0 16px; }
+.asset-trend-chart svg { width: 100%; max-width: 680px; height: auto; }
+.asset-trend-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; margin-top: 4px; }
+.asset-trend-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.asset-trend-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
