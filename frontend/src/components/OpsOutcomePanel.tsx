@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { getOpsOutcome } from "../lib/api";
+import { getOpsOutcome, getOpsOutcomeSnapshots } from "../lib/api";
 
 type Summary = {
   n: number;
@@ -51,13 +51,38 @@ function signed(value: number | null) {
  */
 export function OpsOutcomePanel() {
   const [data, setData] = useState<Payload | null>(null);
+  const [snapshots, setSnapshots] = useState<Array<{ date: string; snapshot: Payload }>>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     getOpsOutcome()
       .then((value) => setData(value as Payload))
       .catch(() => setError("读取失败，检查本地服务。"));
+    getOpsOutcomeSnapshots()
+      .then((value) => setSnapshots(value as Array<{ date: string; snapshot: Payload }>))
+      .catch(() => setSnapshots([]));
   }, []);
+
+  // 趋势：最新两份快照对比（看样本在不在长、结论在不在变）
+  const latest = snapshots.length >= 1 ? snapshots[snapshots.length - 1] : null;
+  const previous = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null;
+  const trend = (() => {
+    if (!latest || !previous) return [];
+    const prevMap = new Map(previous.snapshot.operations.map((row) => [row.operation, row]));
+    return latest.snapshot.operations
+      .map((row) => {
+        const before = prevMap.get(row.operation);
+        if (!before) return null;
+        return {
+          operation: row.operation,
+          nBefore: before.n,
+          nNow: row.n,
+          netBefore: before.net_effect,
+          netNow: row.net_effect
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  })();
 
   if (error) return <p className="monitor-signal">{error}</p>;
   if (!data) return null;
@@ -116,6 +141,46 @@ export function OpsOutcomePanel() {
           ))}
         </tbody>
       </table>
+
+      <h4>资产趋势（每日 08:10 存档）</h4>
+      {latest ? (
+        <p className="monitor-signal">
+          已有 <strong>{snapshots.length}</strong> 份快照，最新 {latest.date}。
+          {previous ? ` 下面是最新（${latest.date}）对比上一份（${previous.date}）。` : " 再攒 1 天就能对比趋势。"}
+        </p>
+      ) : (
+        <p className="monitor-signal">还没有快照，每天 08:10 自动存一份。</p>
+      )}
+      {trend.length ? (
+        <table>
+          <thead>
+            <tr>
+              <th>操作</th>
+              <th>样本（前 → 后）</th>
+              <th>净效应（前 → 后）</th>
+              <th>变化</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trend.map((row) => {
+              const delta =
+                row.netBefore !== null && row.netNow !== null ? row.netNow - row.netBefore : null;
+              return (
+                <tr key={row.operation}>
+                  <td>{row.operation}</td>
+                  <td>
+                    {row.nBefore} → {row.nNow}
+                  </td>
+                  <td>
+                    {signed(row.netBefore)} → {signed(row.netNow)}
+                  </td>
+                  <td>{delta === null ? "--" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : null}
 
       <p className="monitor-signal">
         ⚠️ {data.note} 单类样本 &lt; {data.min_sample} 只标"样本不足"，不出结论。

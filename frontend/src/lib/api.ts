@@ -179,6 +179,12 @@ export async function testApiConnection(): Promise<{ ok: boolean; message: strin
   return body;
 }
 
+export async function getOpsOutcomeSnapshots() {
+  const response = await fetch(`${API_BASE}/api/ops-outcome/snapshots`);
+  if (!response.ok) throw new Error("Failed to load asset snapshots");
+  return response.json();
+}
+
 export async function getOpsOutcome() {
   const response = await fetch(`${API_BASE}/api/ops-outcome`);
   if (!response.ok) throw new Error("Failed to load ops outcome");
