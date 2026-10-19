@@ -122,6 +122,10 @@ copy backend\.env.example backend\.env
 到生成授权链接、换 access token、填进「数据源 → API 连接」。
 不配也能用（默认走 CDP 读浏览器页面）；配好后工具会自动切到「API 优先」。
 
+**「数据资产」里的结论是怎么算出来的？**
+看 **[数据资产底层逻辑.md](docs/数据资产底层逻辑.md)**：数据流、边际 ROI、基线漂移、净效应、
+流速分层、操作分类规则、样本护栏、已知局限，全都写清楚了。
+
 **Mac / Linux 能用吗？**
 暂时**只支持 Windows**（启动脚本是 PowerShell / cmd，读数据走 Windows 的 Chrome）。
 
