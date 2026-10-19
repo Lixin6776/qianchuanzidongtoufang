@@ -2,6 +2,17 @@ import { render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 
 vi.mock("../lib/api", () => ({
+  getOpsOutcomeOverview: vi.fn().mockResolvedValue({
+    asset_days: 12,
+    span: { start: "2026-10-07", end: "2026-10-19" },
+    watch_reports: 2431,
+    operation_events: 412,
+    operation_types: 10,
+    conclusions: 3,
+    reviews: 13,
+    analyses: 16,
+    health: { last_24h_total: 280, last_24h_valid: 245, valid_rate: 0.875, cdp_errors: 3 }
+  }),
   getOpsOutcome: vi.fn().mockResolvedValue({
     generated_at: "2026-10-19T08:10:00+08:00",
     window_minutes: 10,

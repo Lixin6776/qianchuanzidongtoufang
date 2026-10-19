@@ -1046,3 +1046,22 @@ body { font-size: 14px; line-height: 1.5; }
   background: var(--color-surface);
 }
 .api-conn-form .live-watch-actions { margin-top: 4px; }
+
+/* --- 数据资产：概览卡片 --- */
+.asset-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.asset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+.asset-card span { font-size: 12px; color: var(--color-muted, #888); }
+.asset-card strong { font-size: 20px; }

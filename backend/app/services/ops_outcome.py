@@ -271,6 +271,7 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
     return {
         "generated_at": datetime.now(BEIJING).isoformat(),
         "window_minutes": FORWARD_MINUTES,
+        "operation_events": len(op_events),
         "min_sample": MIN_SAMPLE,
         "baseline": summarize(control) | {"operation": "（基线：无操作时刻）"},
         "treated": summarize(treated),
@@ -344,3 +345,58 @@ class AssetSnapshotStore:
             json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         return entry
+
+
+def compute_asset_overview(
+    logs: Iterable[dict],
+    *,
+    reviews: int = 0,
+    analyses: int = 0,
+) -> dict:
+    """数据资产概览：资产有多厚、结论有几条、最近数据健不健康。"""
+    reports = []
+    error_count = 0
+    for report in logs:
+        at = _parse_ts(report.get("created_at"))
+        if at is None:
+            continue
+        reports.append((at.astimezone(BEIJING), report))
+        if report.get("source") == "cdp-error":
+            error_count += 1
+    reports.sort(key=lambda item: item[0])
+
+    if reports:
+        start, end = reports[0][0], reports[-1][0]
+        asset_days = max(1, (end.date() - start.date()).days + 1)
+        span_start = start.strftime("%Y-%m-%d")
+        span_end = end.strftime("%Y-%m-%d")
+    else:
+        asset_days = 0
+        span_start = span_end = ""
+
+    # 最近 24 小时的数据健康
+    cutoff = datetime.now(BEIJING) - timedelta(hours=24)
+    recent = [item for item in reports if item[0] >= cutoff]
+    recent_total = len(recent)
+    recent_valid = sum(1 for _, report in recent if report.get("source") == "cdp")
+    valid_rate = round(recent_valid / recent_total, 4) if recent_total else None
+
+    outcome = compute_ops_outcome([report for _, report in reports])
+    conclusions = len(significant_operations(outcome))
+
+    return {
+        "asset_days": asset_days,
+        "span": {"start": span_start, "end": span_end},
+        "watch_reports": len(reports),
+        "operation_events": outcome.get("operation_events", 0),
+        "operation_types": len(outcome.get("operations", [])),
+        "conclusions": conclusions,
+        "reviews": reviews,
+        "analyses": analyses,
+        "health": {
+            "last_24h_total": recent_total,
+            "last_24h_valid": recent_valid,
+            "valid_rate": valid_rate,
+            "cdp_errors": error_count,
+        },
+    }
