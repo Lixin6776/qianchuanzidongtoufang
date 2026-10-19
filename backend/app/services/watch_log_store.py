@@ -16,7 +16,10 @@ DEFAULT_DB_PATH = (
     Path(__file__).resolve().parents[3] / ".local" / "live_watch_logs.sqlite3"
 )
 LEGACY_JSON_PATH = Path(__file__).resolve().parents[3] / ".local" / "live_watch_logs.json"
-KEEP_ROWS = 1500
+# 保留多少条盯盘记录。
+# 之前是 1500（约 5 天）—— 那会让"数据资产"变成一个 5 天滚动窗口，永远长不大。
+# 提到 20000（约 70 天 @ 每5分钟一条）：本地 SQLite 约 200MB 量级，可接受。
+KEEP_ROWS = 20000
 
 
 class SqliteWatchLogStore:
