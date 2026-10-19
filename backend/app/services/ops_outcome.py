@@ -88,6 +88,10 @@ def _parse_ts(value) -> datetime | None:
 
 
 _TASK_ID = re.compile(r"任务ID[：:]\s*(\d{6,})")
+_BUDGET_ONE = re.compile(r"调控预算[：:]\s*([\d.]+)元\s*$")
+_ROI_TARGET = re.compile(r"综合营销ROI目标[：:]\s*([\d.]+)")
+_GOAL = re.compile(r"优化目标[：:]\s*([^\n；;]+)")
+_SCENARIO = re.compile(r"调控场景[：:]\s*([^\n；;]+)")
 # 修改型日志里任务 ID 写成「操作内容：素材追投，ID：xxx」（没写"任务ID"）
 _OP_CONTENT_TASK_ID = re.compile(r"操作内容[：:]\s*素材追投[，,]\s*ID[：:]\s*(\d{6,})")
 _MATERIAL_ID = re.compile(r"素材ID[：:]\s*(\d{6,})")
@@ -106,6 +110,21 @@ def _op_meta(entry: dict) -> dict:
         match = _MATERIAL_ID.search(line)
         if match and "material_id" not in meta:
             meta["material_id"] = match.group(1)
+        budget_two = _BUDGET.search(line)
+        if budget_two and "budget" not in meta:
+            meta["budget"] = float(budget_two.group(2))   # 修改型取改后值
+        budget_one = _BUDGET_ONE.search(line)
+        if budget_one and "budget" not in meta:
+            meta["budget"] = float(budget_one.group(1))   # 新建型
+        match = _ROI_TARGET.search(line)
+        if match and "roi_target" not in meta:
+            meta["roi_target"] = float(match.group(1))
+        match = _GOAL.search(line)
+        if match and "optimization_goal" not in meta:
+            meta["optimization_goal"] = match.group(1).strip()
+        match = _SCENARIO.search(line)
+        if match and "scenario" not in meta:
+            meta["scenario"] = match.group(1).strip()
         if "任务名称" in line and "task_name" not in meta:
             part = line.split("任务名称", 1)[1].lstrip("：: ")
             part = part.split("；")[0].split(";")[0].split(" -> ")[0].strip()
@@ -499,6 +518,10 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
                         "task_id": task_id,
                         "material_id": material_id,
                         "task_name": task_name,
+                        "budget": meta.get("budget"),
+                        "roi_target": meta.get("roi_target"),
+                        "optimization_goal": meta.get("optimization_goal") or "",
+                        "scenario": meta.get("scenario") or "",
                     },
                 )
             )
@@ -555,6 +578,10 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
                 "material_id": meta.get("material_id") or "",
                 "task_name": meta.get("task_name") or "",
                 "material_name": material_names.get(str(meta.get("material_id") or ""), ""),
+                "budget": meta.get("budget"),
+                "roi_target": meta.get("roi_target"),
+                "optimization_goal": meta.get("optimization_goal") or "",
+                "scenario": meta.get("scenario") or "",
             }
         )
     rows.sort(key=lambda item: item["at"], reverse=True)

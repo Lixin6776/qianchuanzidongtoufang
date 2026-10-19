@@ -105,6 +105,7 @@ export function DataAssetPanel() {
               <th>时间</th>
               <th>操作</th>
               <th>任务 / 素材</th>
+              <th>预算 / ROI目标</th>
               <th>操作前 ROI</th>
               <th>10 分钟后</th>
               <th>20 分钟后</th>
@@ -126,6 +127,14 @@ export function DataAssetPanel() {
                   {row.material_id ? (
                     <div className="monitor-signal">素材ID {String(row.material_id)}</div>
                   ) : null}
+                </td>
+                <td>
+                  {row.budget === null || row.budget === undefined
+                    ? "--"
+                    : `¥${Number(row.budget).toLocaleString()}`}
+                  {row.roi_target !== null && row.roi_target !== undefined
+                    ? ` / ROI ${Number(row.roi_target).toFixed(2)}`
+                    : ""}
                 </td>
                 <td>{row.before_roi === null ? "--" : Number(row.before_roi).toFixed(2)}</td>
                 <td>{row.after_10m_roi === null ? "--" : Number(row.after_10m_roi).toFixed(2)}</td>

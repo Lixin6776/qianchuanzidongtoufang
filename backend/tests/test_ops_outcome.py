@@ -99,3 +99,31 @@ def test_material_name_store_upsert_and_lookup(tmp_path):
     assert store.upsert([{"material_id": "111", "name": "素材A"}]) == 0
     assert store.upsert([{"material_id": "111", "name": "素材A-改"}]) == 1
     assert store.name_of("111") == "素材A-改"
+
+
+def test_op_meta_extracts_budget_roi_material():
+    """新建追投的 预算 / ROI目标 / 素材ID / 场景 都要抽出来（用于归因）。"""
+    from app.services.ops_outcome import _op_meta
+
+    meta = _op_meta(
+        {
+            "type": "新建",
+            "details": [
+                "操作：素材追投",
+                "任务名称：20261019_素材追投_12:04:21直投",
+                "任务ID：1879449451916506",
+                "调控预算：2000.00元",
+                "调控场景：控成本追投",
+                "优化目标：综合营销ROI",
+                "综合营销ROI目标：1.70",
+                "素材ID：1876023120663875",
+            ],
+            "summary": "",
+        }
+    )
+    assert meta["task_id"] == "1879449451916506"
+    assert meta["budget"] == 2000.0
+    assert meta["roi_target"] == 1.7
+    assert meta["material_id"] == "1876023120663875"
+    assert meta["scenario"] == "控成本追投"
+    assert meta["optimization_goal"] == "综合营销ROI"
