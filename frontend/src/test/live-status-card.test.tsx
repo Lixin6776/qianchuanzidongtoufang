@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { vi } from "vitest";
 
 import { LiveStatusCard } from "../components/LiveStatusCard";
 import type { LiveWatchReport } from "../lib/api";
@@ -47,4 +48,24 @@ test("live status card surfaces the latest room and operator metrics", () => {
   expect(screen.getByText("¥3,912.69")).toBeInTheDocument();
   expect(screen.getByText(/综合营销 ROI 未达标/)).toBeInTheDocument();
   expect(screen.getByText(/先收缩低效素材/)).toBeInTheDocument();
+});
+test("ended live shows the final snapshot and stops polling", async () => {
+  vi.useFakeTimers();
+  const ended = { ...report, session_status: "ended" };
+  const load = vi.fn().mockResolvedValue(ended);
+  render(<LiveStatusCard load={load} refreshMs={1000} />);
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(load).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("直播已结束")).toBeInTheDocument();
+  expect(screen.getByText(/自动盯盘和数据轮询已停止/)).toBeInTheDocument();
+
+  await act(async () => {
+    vi.advanceTimersByTime(4000);
+    await Promise.resolve();
+  });
+  expect(load).toHaveBeenCalledTimes(1);
+  vi.useRealTimers();
 });

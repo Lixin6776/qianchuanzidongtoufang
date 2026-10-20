@@ -60,8 +60,7 @@ function overallTone(report: LiveWatchReport | null): Tone {
   if (
     report.source === "cdp-error" ||
     report.verify_passed === false ||
-    report.level === "action" ||
-    report.session_status === "ended"
+    report.level === "action"
   ) {
     return "danger";
   }
@@ -106,12 +105,20 @@ export function LiveStatusCard({
     }
 
     let active = true;
+    let stopped = false;
+    let timer: number | null = null;
     const refresh = async () => {
+      if (stopped) return;
       try {
         const next = await load();
         if (!active) return;
         setReport(next);
         setError(null);
+        if (next?.session_status === "ended" || next?.session_status === "stopped") {
+          stopped = true;
+          if (timer !== null) window.clearInterval(timer);
+          timer = null;
+        }
       } catch {
         if (!active) return;
         setError("最新盯盘数据读取失败");
@@ -120,10 +127,11 @@ export function LiveStatusCard({
       }
     };
 
+    timer = refreshMs > 0 ? window.setInterval(refresh, refreshMs) : null;
     void refresh();
-    const timer = refreshMs > 0 ? window.setInterval(refresh, refreshMs) : null;
     return () => {
       active = false;
+      stopped = true;
       if (timer !== null) window.clearInterval(timer);
     };
   }, [providedReport, load, refreshMs]);
@@ -180,18 +188,20 @@ export function LiveStatusCard({
     }
   ];
 
-  const tone = error ? "danger" : overallTone(report);
   const problem = plainText(report?.problems?.find((item) => item.trim()));
   const adjustment = plainText(report?.adjustments?.find((item) => item.trim()));
   const roomName = report?.room_name || "直播间待读取";
   const observedAt = report?.captured_at || report?.created_at;
+  const isEnded = report?.session_status === "ended" || report?.session_status === "stopped";
+  const tone = error ? "danger" : isEnded ? "muted" : overallTone(report);
+  const badgeLabel = isEnded ? "直播已结束" : toneLabel(tone);
 
   return (
     <section className={`live-status-card live-status-${tone}`} aria-label="实时盯盘状态">
       <header className="live-status-head">
         <div className="live-status-heading">
           <span className="live-status-kicker">
-            <i className="live-status-pulse" aria-hidden="true" />
+            <i className={`live-status-pulse${isEnded ? " is-ended" : ""}`} aria-hidden="true" />
             LIVE OPS · 5 分钟盯盘
           </span>
           <div className="live-status-titleline">
@@ -201,10 +211,16 @@ export function LiveStatusCard({
         </div>
         <div className="live-status-meta">
           <span className="live-status-source">{report?.source ? report.source.toUpperCase() : "WAIT"}</span>
-          <span className={`live-status-badge live-status-badge-${tone}`}>{toneLabel(tone)}</span>
-          <time>{loading ? "读取中" : `更新于 ${formatTime(observedAt)}`}</time>
+          <span className={`live-status-badge live-status-badge-${tone}`}>{badgeLabel}</span>
+          <time>{loading ? "读取中" : `${isEnded ? "最后更新" : "更新于"} ${formatTime(observedAt)}`}</time>
         </div>
       </header>
+
+      {isEnded ? (
+        <div className="live-status-ended-note">
+          直播已结束，自动盯盘和数据轮询已停止，当前展示最终快照。
+        </div>
+      ) : null}
 
       <div className="live-status-grid">
         {metrics.map((metric) => (

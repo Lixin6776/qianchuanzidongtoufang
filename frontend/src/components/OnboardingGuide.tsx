@@ -85,16 +85,17 @@ export function OnboardingGuide({
     ]);
   }
 
+  const required = steps.filter((s) => !s.optional);
+  const requiredDone = required.length > 0 && required.every((s) => s.done);
+
   useEffect(() => {
+    if (hidden || requiredDone) return;
     refresh();
     const timer = window.setInterval(refresh, 20000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [hidden, requiredDone]);
 
-  if (hidden || steps.length === 0) return null;
-  // 可选的步骤（大模型 Key）不算"必做"，全做完必做项就自动隐藏
-  const required = steps.filter((s) => !s.optional);
-  if (required.length === 0 || required.every((s) => s.done)) return null;
+  if (hidden || steps.length === 0 || requiredDone) return null;
 
   const doneCount = required.filter((s) => s.done).length;
 

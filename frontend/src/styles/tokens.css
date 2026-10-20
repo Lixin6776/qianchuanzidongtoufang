@@ -1985,3 +1985,21 @@ body {
   .chat-main > .chat-panel { height: 500px; min-height: 420px; }
   .chat-main > .main-tool-window { height: auto; min-height: 460px; }
 }
+
+/* Ended live state: keep the final snapshot, stop the live signal */
+.live-status-muted { border-left-color: #64748b; }
+.live-status-pulse.is-ended {
+  background: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.08);
+  animation: none;
+}
+.live-status-ended-note {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 7px;
+  background: rgba(148, 163, 184, 0.07);
+  color: #aebdd3;
+  font-size: 12px;
+  line-height: 1.5;
+}

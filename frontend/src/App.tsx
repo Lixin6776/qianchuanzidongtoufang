@@ -162,11 +162,20 @@ export default function App() {
   useEffect(() => {
     const seen = { id: "" };
     let first = true;
-    const timer = window.setInterval(async () => {
+    let stopped = false;
+    let timer: number | null = null;
+
+    const poll = async () => {
+      if (stopped) return;
       try {
         const logs = await getLiveWatchLogs(1);
         const latest = logs[0];
         if (!latest) return;
+        if (latest.session_status === "ended" || latest.session_status === "stopped") {
+          stopped = true;
+          if (timer !== null) window.clearInterval(timer);
+          timer = null;
+        }
         if (first) {
           // 首次只记录，不把历史报表重新灌进聊天
           first = false;
@@ -177,10 +186,19 @@ export default function App() {
         seen.id = latest.id;
         setIncomingMessage({ id: latest.id, content: latest.report_markdown });
       } catch {
-        // ignore
+        // 网络异常时保留轮询，恢复后继续同步
       }
-    }, 20000);
-    return () => window.clearInterval(timer);
+    };
+
+    void (async () => {
+      await poll();
+      if (!stopped) timer = window.setInterval(poll, 20000);
+    })();
+
+    return () => {
+      stopped = true;
+      if (timer !== null) window.clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
