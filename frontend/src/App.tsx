@@ -16,7 +16,6 @@ import { DataSourcePanel } from "./components/DataSourcePanel";
 import { DecisionPanel } from "./components/DecisionPanel";
 import { type LiveMonitorEvent } from "./components/LiveMonitorPanel";
 import { LlmConnectionPanel } from "./components/LlmConnectionPanel";
-import { PlanSnapshotPanel } from "./components/PlanSnapshotPanel";
 import { StrategyBanner, type StrategyBannerProfile } from "./components/StrategyBanner";
 import { ThresholdPanel } from "./components/ThresholdPanel";
 import {
@@ -261,7 +260,6 @@ export default function App() {
     <div className="app-shell">
       <StrategyBanner profile={profile} />
       <LiveStatusCard />
-      <PlanSnapshotPanel event={monitorEvent} />
       <OnboardingGuide
         onOpenWindow={(windowId) => windowId && setActiveWindow(windowId as ToolWindow)}
         onTick={() => {
