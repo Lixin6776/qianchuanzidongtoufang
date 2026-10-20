@@ -366,14 +366,14 @@ def detect_problems(
     roi_ok = bool(target_known and metrics.roi is not None and metrics.roi >= threshold)
     if metrics.roi is not None and not target_known:
         problems.append(
-            f"目标 ROI 未读到：当前整体 ROI {metrics.roi:.2f}，本轮无法判断是否达标"
+            f"综合营销 ROI 目标未读到：当前综合营销 ROI {metrics.roi:.2f}，本轮无法判断是否达标"
             "（先确认该直播间计划里的综合营销 ROI 目标）"
         )
     elif target_known and metrics.roi is not None and metrics.roi < threshold:
         gap = threshold - metrics.roi
         pct = gap / threshold * 100 if threshold else 0
         problems.append(
-            f"ROI 未达标：当前 {metrics.roi:.2f}，目标 {threshold:.2f}，"
+            f"综合营销 ROI 未达标：当前 {metrics.roi:.2f}，目标 {threshold:.2f}，"
             f"缺口 {gap:.2f}（低 {pct:.0f}%）"
         )
 
@@ -425,10 +425,10 @@ def detect_problems(
         cutoff = (base_roi or 0.0) * POOR_MATERIAL_RATIO
         problems.append(
             f"高消耗低效素材：「{_short(poor['name'])}」消耗 {_money(poor.get('spend'))}"
-            f"（占素材消耗 {share:.0f}%），ROI 仅 {roi_text}，拉低整体"
+            f"（占素材消耗 {share:.0f}%），素材 ROI 仅 {roi_text}，拉低整体"
             f"（依据：消耗 {_money(poor.get('spend'))} > ¥{POOR_MATERIAL_SPEND:,.0f}"
-            f" 且 ROI {roi_text} < 账户实际 ROI {_ratio(metrics.roi)} × 0.8 = {cutoff:.2f}；"
-            "官方补充：素材是否低质要看**持续多天低跑量**，不能用单场 ROI 判定）"
+            f" 且素材 ROI {roi_text} < 账户综合营销 ROI {_ratio(metrics.roi)} × 0.8 = {cutoff:.2f}；"
+            "官方补充：素材是否低质要看**持续多天低跑量**，不能用单场素材 ROI 判定）"
         )
 
     # 5) 直播间承接：在线/转化率与自身基线对比（见 baselines 部分）
@@ -436,7 +436,7 @@ def detect_problems(
     if not problems:
         if roi_ok:
             problems.append(
-                f"未发现明显异常：ROI {metrics.roi:.2f} 达标，消耗节奏稳定"
+                f"未发现明显异常：综合营销 ROI {metrics.roi:.2f} 达标，消耗节奏稳定"
             )
         else:
             problems.append("未发现新的异常信号，继续观察")
@@ -465,7 +465,7 @@ def build_adjustments(
     if poor is not None:
         roi_text = f"{float(poor['roi']):.2f}" if poor.get("roi") is not None else "无"
         target_text = (
-            f"，把预算挪给「{_short(best[0]['name'])}」（ROI {float(best[0]['roi']):.2f}）"
+            f"，把预算挪给「{_short(best[0]['name'])}」（素材 ROI {float(best[0]['roi']):.2f}）"
             if best and best[0].get("roi") is not None
             else ""
         )
@@ -473,13 +473,13 @@ def build_adjustments(
         cutoff = (base_roi or 0.0) * POOR_MATERIAL_RATIO
         plans.append(
             f"素材：「{_short(poor['name'])}」消耗 {_money(poor.get('spend'))}、"
-            f"ROI {roi_text} 低于账户实际 ROI {_ratio(metrics.roi)} × 0.8 = {cutoff:.2f}"
+            f"素材 ROI {roi_text} 低于账户综合营销 ROI {_ratio(metrics.roi)} × 0.8 = {cutoff:.2f}"
             "。⚠️ 按官方口径：**投放中不要直接删除/暂停高跑量素材**"
             "（官方《净成交出价-素材评估思路》：素材之间相互配合，"
             "有的承担跑量责任、有的承担转化责任，贸然删高跑量素材会让系统探索范围变小、"
-            "跑量规模下滑，整体 GMV 和 ROI 反而变差）。"
-            "正确做法：① 先判断它是不是「持续多天低跑量」——单场 ROI 低不等于该清；"
-            "② 想刺激它起量，用追投**下调 ROI 目标**加速激活，而不是删"
+            "跑量规模下滑，整体 GMV 和综合营销 ROI 反而变差）。"
+            "正确做法：① 先判断它是不是「持续多天低跑量」——单场素材 ROI 低不等于该清；"
+            "② 想刺激它起量，用追投**下调综合营销 ROI 目标**加速激活，而不是删"
         )
 
     # 2) 追投占比
@@ -492,14 +492,14 @@ def build_adjustments(
     # 3) ROI
     if roi is not None and threshold is None:
         plans.append(
-            f"ROI：当前整体 {roi:.2f}，但没读到该计划的 ROI 目标，本轮无法判断是否达标。"
+            f"综合营销 ROI：当前 {roi:.2f}，但没读到该计划的综合营销 ROI 目标，本轮无法判断是否达标。"
             "先去计划里确认目标，再决定收缩还是放量"
         )
     elif roi is not None and roi < threshold:
         plans.append(
-            f"ROI：先按上面两步收缩，10～20 分钟观察 ROI 能否回到 {threshold:.2f}。"
-            "注意官方口径：控成本追投的 ROI 达成和累计消耗直接相关，"
-            "**累计消耗未达到 10 个转化成本时，ROI 没达标属正常探索期**，别急着判定失败"
+            f"综合营销 ROI：先按上面两步收缩，10～20 分钟观察综合营销 ROI 能否回到 {threshold:.2f}。"
+            "注意官方口径：控成本追投的综合营销 ROI 达成和累计消耗直接相关，"
+            "**累计消耗未达到 10 个转化成本时，综合营销 ROI 没达标属正常探索期**，别急着判定失败"
         )
 
     # 4) 消耗异常
@@ -516,7 +516,7 @@ def build_adjustments(
         plans.append(
             f"流速：{window_text if (window_text := (f"近 {event.minutes_since_previous:.0f} 分钟" if event.minutes_since_previous else "本周期")) else "本周期"}"
             f"消耗加快（+{_money(event.spend_delta)}）。先找跑量的那条计划，"
-            "降预算控流速，10 分钟看 ROI 是否止跌"
+            "降预算控流速，10 分钟看综合营销 ROI 是否止跌"
         )
 
     # 5) 承接
@@ -528,7 +528,7 @@ def build_adjustments(
 
     if roi is not None and threshold is not None and roi >= threshold:
         plans = [
-            f"ROI 达标（{roi:.2f} ≥ {threshold:.2f}）：保持现状继续给量，"
+            f"综合营销 ROI 达标（{roi:.2f} ≥ {threshold:.2f}）：保持现状继续给量，"
             "记录本小时有效计划和素材，不要动"
         ] + plans
 
@@ -540,7 +540,7 @@ def build_adjustments(
     )
     plans.append(
         "合规提醒（官方《全域投放-推直播间产品手册》）："
-        "① 调整目标 ROI 间隔 ≥1 小时、单次幅度不超过 ±10%，否则不享受成本保障；"
+        "① 调整综合营销 ROI 目标间隔 ≥1 小时、单次幅度不超过 ±10%，否则不享受成本保障；"
         "② **不要用「卡预算 / 频繁起停」来代替一键控量**，会导致反复冷启影响效果；"
         "③ **避免小额预算多次小幅频繁上调**，会影响跑量和效果；"
         "④ 素材循序渐进优化，**不要骤然大量删除**（会让投放场景剧烈变化、可能掉量、ROI 骤跌）；"
@@ -654,7 +654,7 @@ def describe_platform_op(op: dict) -> dict | None:
             "kind": "暂停调控",
             "action": f"{stamp}　暂停调控",
             "why": "止损动作：这条追投大概率 ROI 不达标或消耗跑太快，先掐掉它把成本控住",
-            "watch": "暂停后 10～20 分钟，整体 ROI 是否回升、基础计划消耗能不能接上",
+            "watch": "暂停后 10～20 分钟，综合营销 ROI 是否回升、基础计划消耗能不能接上",
         }
     if op_type == "新建" and "素材追投" in text:
         budget_text = _fmt_money(budget.group(1)) if budget else "未标注"
@@ -681,7 +681,7 @@ def describe_platform_op(op: dict) -> dict | None:
             "kind": "减预算",
             "action": f"{stamp}　调控预算 {_fmt_money(budget.group(1))} → {_fmt_money(budget.group(2))}",
             "why": "收缩动作：这条追投不达预期，先减量观察，避免继续吃预算",
-            "watch": "减量后整体 ROI 是否回升、消耗是否还在可控范围",
+            "watch": "减量后综合营销 ROI 是否回升、消耗是否还在可控范围",
         }
     if roi_goal:
         old, new = float(roi_goal.group(1)), float(roi_goal.group(2))
@@ -690,7 +690,7 @@ def describe_platform_op(op: dict) -> dict | None:
                 "kind": "放宽ROI目标",
                 "action": f"{stamp}　综合营销ROI目标 {old:.2f} → {new:.2f}",
                 "why": "换量动作：当前出价拿不到量，运营宁可降一点 ROI 要求，也要把消耗跑起来",
-                "watch": "消耗是否起来、成交能不能同比例跟上；整体 ROI 水位会不会被拉低",
+                "watch": "消耗是否起来、成交能不能同比例跟上；综合营销 ROI 水位会不会被拉低",
             }
         return {
             "kind": "收紧ROI目标",
@@ -735,9 +735,9 @@ def analyze_platform_operations(
     context_bits: list[str] = []
     if metrics.roi is not None:
         if threshold is not None:
-            context_bits.append(f"整体 ROI {metrics.roi:.2f}（目标 {threshold:.2f}）")
+            context_bits.append(f"综合营销 ROI {metrics.roi:.2f}（目标 {threshold:.2f}）")
         else:
-            context_bits.append(f"整体 ROI {metrics.roi:.2f}（目标未读到）")
+            context_bits.append(f"综合营销 ROI {metrics.roi:.2f}（目标未读到）")
     if ratio is not None:
         context_bits.append(f"追投占比 {ratio:.1f}%")
     context = "、".join(context_bits)
@@ -931,7 +931,7 @@ def build_watch_report(
     if room_name:
         header_bits.append(str(room_name))
     if roi_target is not None:
-        header_bits.append(f"目标 ROI {_ratio(roi_target)}")
+        header_bits.append(f"综合营销ROI目标 {_ratio(roi_target)}")
     started = getattr(event, "live_started_at", None)
     if started is not None:
         try:
@@ -1153,7 +1153,7 @@ def build_watch_report(
             label, detail = item.split("：", 1)
             lines.append(f"- **{label}** — {detail}")
         elif "低于目标" in item:
-            lines.append("- **ROI 未达标** — " + item.removeprefix("ROI "))
+            lines.append("- **综合营销 ROI 未达标** — " + item.removeprefix("综合营销 ROI "))
         else:
             lines.append(f"- {item}")
     lines.append("")
@@ -1243,7 +1243,7 @@ def build_watch_report(
             lines.append(
                 f"- 这些操作（{kinds}）暂不在自动分析的覆盖范围内，"
                 "请人工确认：改的是什么对象、改前改后、以及接下来 10～20 分钟"
-                "整体 ROI / 消耗有没有跟着变化"
+                "综合营销 ROI / 消耗有没有跟着变化"
             )
         lines.append("")
 

@@ -55,7 +55,7 @@ def diagnose(
     """输出诊断结论列表。"""
     base = baselines or {}
     target = roi_target if roi_target is not None else None
-    target_text = f"{target:.2f}" if target is not None else "未加载（账户目标 ROI 还没读到）"
+    target_text = f"{target:.2f}" if target is not None else "未加载（综合营销 ROI 目标还没读到）"
     _roi_now = getattr(metrics, "roi", None)
     roi_text = f"{_roi_now:.2f}" if _roi_now is not None else "未读到"
     out: list[Diagnosis] = []
@@ -112,8 +112,8 @@ def diagnose(
             evidence=[
                 f"曝光观看率 {ev:.2f}%（{ev_dev:+.0f}% vs {ev_base_text}）",
                 f"在线人数 {online}（{on_dev:+.0f}% vs 基线）" if on_dev is not None else f"在线人数 {online}",
-                (f"整体 ROI {roi_text}（目标 {target_text}）"
-                 + ("——ROI 已达标但进人环节在恶化，需提前干预" if target and roi and roi >= target else "")),
+                (f"综合营销 ROI {roi_text}（目标 {target_text}）"
+                 + ("——综合营销 ROI 已达标但进人环节在恶化，需提前干预" if target and roi and roi >= target else "")),
             ],
             reasoning="曝光观看率与在线人数同步走低，说明流量到了但没转化成进人；"
                       "如果是承接问题，通常曝光观看率正常、只有转化率下滑。",
@@ -132,8 +132,8 @@ def diagnose(
                 f"曝光观看率 {ev:.2f}%（{ev_dev:+.0f}%）→ 进人环节正常" if ev_dev is not None else "曝光观看率无基线",
                 f"观看成交转化率 {conv:.2f}%（{conv_dev:+.0f}% vs {fmt_base(conv_base, conv_n, '%')}）" if conv_dev is not None else "",
                 f"GPM ¥{gpm:,.0f}（{gpm_dev:+.0f}% vs {fmt_base(gpm_base, gpm_n, ' 元')}）" if gpm_dev is not None else "",
-                (f"整体 ROI {roi_text}（目标 {target_text}）"
-                 + ("——ROI 暂时达标，但承接在下滑" if target and roi and roi >= target else "")),
+                (f"综合营销 ROI {roi_text}（目标 {target_text}）"
+                 + ("——综合营销 ROI 暂时达标，但承接在下滑" if target and roi and roi >= target else "")),
             ],
             reasoning="进人环节正常（曝光观看率没掉），但转化率和 GPM 同步下滑——"
                       "说明人群进来了但没买，问题在直播间的承接能力（话术/货品/机制）。",
@@ -150,9 +150,9 @@ def diagnose(
             conclusion="问题在「拿量成本」——CPM 高于自身常态，吃掉利润空间",
             evidence=[
                 f"CPM ¥{cpm_now:.1f}（{cpm_dev:+.0f}% vs {fmt_base(cpm_base, cpm_n, ' 元')}）",
-                f"整体 ROI {roi_text} 未达目标 {target_text}" if roi else "",
+                f"综合营销 ROI {roi_text} 未达目标 {target_text}" if roi else "",
             ],
-            reasoning="ROI = GPM ÷ CPM × 曝光观看率。CPM 抬升会直接压低 ROI，"
+            reasoning="综合营销 ROI = GPM ÷ CPM × 曝光观看率。CPM 抬升会直接压低综合营销 ROI，"
                       "而 CPM 取决于自然成交能力（官方口径）——人群竞争或素材质量变差。",
             ruled_out=[],
             confidence="中",
@@ -176,18 +176,18 @@ def diagnose(
         out.append(Diagnosis(
             key="调控拖累",
             conclusion=(
-                f"调控/追投在拖累整体——基础投放 ROI {s_base_roi:.2f} 达标，"
-                f"追投调控 ROI 只有 {assist_roi_text}，整体被拉到 {s_total_roi:.2f}"
+                f"调控/追投在拖累综合营销 ROI——基础投放 ROI {s_base_roi:.2f} 达标，"
+                f"追投调控 ROI 只有 {assist_roi_text}，综合营销 ROI 被拉到 {s_total_roi:.2f}"
             ),
             evidence=[
                 f"基础投放 ROI {s_base_roi:.2f}（≥目标 {target_text}）",
                 f"追投调控 ROI {assist_roi_text}",
-                f"整体（含调控/追投）ROI {s_total_roi:.2f}（低于目标）",
+                f"综合营销 ROI（含调控/追投）{s_total_roi:.2f}（低于目标）",
                 f"被拉低 {s_base_roi - s_total_roi:.2f}",
             ],
             reasoning="基础投放本身达标，说明基础素材和承接没问题；"
-                      "整体不达标是调控/追投的量级和效率拖下来的"
-                      "（官方：调控量级太大会和主计划抢量、拉低账户 ROI）。",
+                      "综合营销 ROI 不达标是调控/追投的量级和效率拖下来的"
+                      "（官方：调控量级太大会和主计划抢量、拉低账户综合营销 ROI）。",
             ruled_out=["基础投放能力：基础 ROI 已达标，排除"],
             confidence="高",
         ))
@@ -203,14 +203,14 @@ def diagnose(
             if target and base_roi >= target and overall < target:
                 out.append(Diagnosis(
                     key="调控拖累",
-                    conclusion=f"调控/追投在拖累整体——基础投放 ROI {base_roi:.2f} 达标，整体只有 {overall:.2f}",
+                    conclusion=f"调控/追投在拖累综合营销 ROI——基础投放 ROI {base_roi:.2f} 达标，综合营销 ROI 只有 {overall:.2f}",
                     evidence=[
                         f"基础投放 ROI {base_roi:.2f}（≥目标 {target:.2f}）",
-                        f"整体（含调控/追投）ROI {overall:.2f}（低于目标）",
+                        f"综合营销 ROI（含调控/追投）{overall:.2f}（低于目标）",
                         f"被拉低 {base_roi - overall:.2f}",
                     ],
                     reasoning="基础投放本身达标，说明素材和承接没问题；"
-                              "整体不达标是调控/追投量级过大导致（官方：调控量级太大会和主计划抢量、拉低账户 ROI）。",
+                              "综合营销 ROI 不达标是调控/追投量级过大导致（官方：调控量级太大会和主计划抢量、拉低账户综合营销 ROI）。",
                     ruled_out=["基础投放能力：基础 ROI 已达标，排除"],
                     confidence="高",
                 ))
@@ -266,7 +266,7 @@ def diagnose(
                         f"{_describe((lines or {}).get('assist_share'))}）",
                         f"基础计划 ¥{basic:,.2f}（{100 - ratio:.1f}%）",
                     ],
-                    reasoning="官方明确：调控量级太大会和主计划抢量、拉低账户整体 ROI，"
+                    reasoning="官方明确：调控量级太大会和主计划抢量、拉低账户综合营销 ROI，"
                               "建议控成本追投占账户总消耗 25% 左右。"
                               "（这里的分母是素材口径，和官方账户口径不是同一把尺子，"
                               "看趋势可以，别当成精确倍数。）",

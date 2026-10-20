@@ -4,7 +4,7 @@ import { ReportMessage } from "../components/ReportMessage";
 
 const SAMPLE = `## 直播盯盘报表 · 10-06 12:56
 
-> 计划 1876035797292211　|　目标 ROI 2.60　|　数据源 cdp
+> 计划 1876035797292211　|　综合营销ROI目标 2.60　|　数据源 cdp
 
 ### 实时数据
 
@@ -16,7 +16,7 @@ const SAMPLE = `## 直播盯盘报表 · 10-06 12:56
 
 ### 发现的问题
 
-- **ROI 未达标** — 1.72 低于目标 2.60
+- **综合营销 ROI 未达标** — 1.72 低于目标 2.60
 - 消耗连续两个周期几乎不动
 
 ### 调整方案（需你确认）
@@ -49,7 +49,7 @@ test("renders report markdown as structured HTML instead of raw text", () => {
   expect(screen.getByText("¥18,084.55")).toBeInTheDocument();
 
   // 加粗
-  const bold = screen.getByText("ROI 未达标");
+  const bold = screen.getByText("综合营销 ROI 未达标");
   expect(bold.tagName).toBe("STRONG");
 
   // 有序 / 无序列表

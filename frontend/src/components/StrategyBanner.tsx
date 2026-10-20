@@ -15,7 +15,7 @@ function constraintLabels(constraints: Record<string, unknown>) {
   const assist = constraints.assist_share_max;
   if (typeof assist === "number") labels.push(`追投 ≤${assist}%`);
   const roi = constraints.roi_target;
-  if (typeof roi === "number") labels.push(`ROI 参考 ${roi}`);
+  if (typeof roi === "number") labels.push(`综合营销ROI参考 ${roi}`);
   const budget = constraints.daily_budget_max;
   if (typeof budget === "number") labels.push(`日预算 ≤¥${budget.toLocaleString("zh-CN")}`);
   if (!labels.length) labels.push("策略约束待配置");

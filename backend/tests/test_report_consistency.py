@@ -110,14 +110,14 @@ def test_live_watch_without_target_never_invents_one():
     plans = build_adjustments(event, [], None, None)
     blob = "\n".join(problems + plans)
     assert not re.search(r"目标 \d+\.\d+", blob)
-    assert "目标 ROI 未读到" in blob
+    assert "综合营销 ROI 目标未读到" in blob
     assert "无法判断是否达标" in blob
 
 
 def test_live_watch_with_target_still_compares():
     event = _event()
     problems = detect_problems(event, [], 2.5, None)
-    assert "ROI 未达标：当前 1.80，目标 2.50" in "\n".join(problems)
+    assert "综合营销 ROI 未达标：当前 1.80，目标 2.50" in "\n".join(problems)
 
 
 # --- 2. 报了问题就必须给方案 ------------------------------------------------
@@ -253,7 +253,7 @@ def test_watch_report_renders_without_target():
     report = build_watch_report(event, [], None, [])
     text = report["report_markdown"]
     assert not re.search(r"目标 \d+\.\d+", text)
-    assert "目标 ROI 未读到" in text
+    assert "综合营销 ROI 目标未读到" in text
 
 
 def test_csv_like_slice_is_not_partial_sentence():

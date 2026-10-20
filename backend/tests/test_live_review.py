@@ -111,5 +111,5 @@ def test_build_live_review_uses_live_start_date_and_reports_unknown_target():
     assert review["date"] == "2026-09-30"
     # 目标未配置时要如实说「未配置」，不能编一个目标出来算缺口
     assert "综合营销 ROI：1.80（目标 --，**未配置**）" in report
-    assert "未配置目标 ROI，**无法判断是否达标**" in report
+    assert "未配置综合营销 ROI 目标，**无法判断是否达标**" in report
     assert "目标 2.00" not in report

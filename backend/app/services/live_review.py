@@ -212,7 +212,7 @@ def _build_issues(
         issues.append({
             "focus": "ROI",
             "phenomenon": (
-                f"整体 ROI {metrics.roi:.2f}，但账户未配置目标 ROI，**无法判断是否达标**"
+                f"综合营销 ROI {metrics.roi:.2f}，但账户未配置综合营销 ROI 目标，**无法判断是否达标**"
             ),
             "attribution": [
                 "① 投放策略里没填 ROI 目标 → 达标与否无参照，先补齐目标",
@@ -254,7 +254,7 @@ def _build_issues(
             causes.append("未定位到单一主因，需要结合上面各环节数据进一步排查")
         issues.append({
             "focus": "ROI",
-            "phenomenon": f"整体 ROI {metrics.roi:.2f}，目标 {threshold:.2f}，"
+            "phenomenon": f"综合营销 ROI {metrics.roi:.2f}，目标 {threshold:.2f}，"
                           f"缺口 {gap:.2f}（低 {gap / threshold * 100:.0f}%）",
             "attribution": causes,
             "basis": "千川计划 ROI 目标 + 本场三因子拆解",
@@ -573,7 +573,7 @@ SOLUTIONS = {
         ],
         "owner": "投手",
         "when": "分 2~3 次调整，每次间隔 ≥1 小时",
-        "verify": "追投占比降到 40% 以下，且基础计划消耗上升、整体 ROI 不继续下滑",
+        "verify": "追投占比降到 40% 以下，且基础计划消耗上升、综合营销 ROI 不继续下滑",
         "basis": "官方《素材追投调控产品手册》建议 25% + 成本保障规则",
     },
     "ROI": {
@@ -582,12 +582,12 @@ SOLUTIONS = {
             "① 先看三因子：CPM（拿量成本）、曝光观看率（素材/画面吸引力）、GPM（承接效率）哪个最差，先修最差的那一项",
             "② 承接端差（GPM 低）→ 先排品和话术，别急着动计划：把高转化品卡在在线人数爬升时段讲",
             "③ 流量端差（CPM 高）→ 换素材、扩人群池，先跑 2~3 条新素材各 300~500 元",
-            "④ 基础 ROI 达标但整体不达标 → 先降追投/调控占比，把量让给基础计划，再看整体 ROI 能不能回来",
+            "④ 基础 ROI 达标但综合营销 ROI 不达标 → 先降追投/调控占比，把量让给基础计划，再看综合营销 ROI 能不能回来",
             "⑤ 要调 ROI 目标时：间隔 ≥1 小时、单次幅度 ≤±10%，否则失去成本保障",
         ],
         "owner": "投手（定方向）+ 运营（排品/话术）",
         "when": "本场复盘后定方向，下场开播前落地；盘中只在出现信号时调整",
-        "verify": "下场整体 ROI 回到目标之上，或缺口较本场收窄 50% 以上",
+        "verify": "下场综合营销 ROI 回到目标之上，或缺口较本场收窄 50% 以上",
         "basis": "官方《全域投放-推直播间产品手册》+ ROI = GPM ÷ CPM × 曝光观看率",
     },
     "CPM": {
@@ -787,8 +787,8 @@ def build_live_review(
 
     # 1) 结果层
     if target is None:
-        problems.append("未配置目标 ROI，无法判断本场是否达标")
-        fixes.append("先补齐投放策略里的 ROI 目标和预算约束")
+        problems.append("未配置综合营销 ROI 目标，无法判断本场是否达标")
+        fixes.append("先补齐投放策略里的综合营销 ROI 目标和预算约束")
     elif metrics.roi is not None and metrics.roi < target:
         gap = target - metrics.roi
         cause = ""
@@ -805,12 +805,12 @@ def build_live_review(
                 f"{LINE_EXPOSURE_VIEW_RATE}%，素材/画面吸引力不够）"
             )
         problems.append(
-            f"ROI 未达标：本场 {metrics.roi:.2f}，目标 {target:.2f}，"
+            f"综合营销 ROI 未达标：本场 {metrics.roi:.2f}，目标 {target:.2f}，"
             f"缺口 {gap:.2f}（低 {gap / target * 100:.0f}%）{cause}"
         )
     elif metrics.roi is not None:
         fixes.append(
-            f"ROI 达标（{metrics.roi:.2f} ≥ {target:.2f}）：保住本场的高转化素材和时段，"
+            f"综合营销 ROI 达标（{metrics.roi:.2f} ≥ {target:.2f}）：保住本场的高转化素材和时段，"
             "下场小幅放量 10%~20% 验证流量质量"
         )
 

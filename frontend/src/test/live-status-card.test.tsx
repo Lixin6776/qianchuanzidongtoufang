@@ -22,7 +22,7 @@ const report: LiveWatchReport = {
   room_name: "质润官方旗舰店",
   session_status: "active",
   verify_passed: true,
-  problems: ["ROI 未达标：当前 2.19，目标 2.80，缺口 0.61"],
+  problems: ["综合营销 ROI 未达标：当前 2.19，目标 2.80，缺口 0.61"],
   adjustments: ["先收缩低效素材，10～20 分钟后复核 ROI"],
   operations: [],
   report_markdown: "## 直播盯盘报表"
@@ -32,7 +32,7 @@ test("live status card surfaces the latest room and operator metrics", () => {
   const { container } = render(<LiveStatusCard report={report} refreshMs={0} />);
 
   expect(Array.from(container.querySelectorAll(".live-status-metric-label > span")).map((node) => node.textContent)).toEqual([
-    "ROI",
+    "综合营销 ROI",
     "GPM",
     "消耗流速",
     "实时在线",
@@ -45,6 +45,6 @@ test("live status card surfaces the latest room and operator metrics", () => {
   expect(screen.getByText("2.19")).toBeInTheDocument();
   expect(screen.getByText("¥86.88")).toBeInTheDocument();
   expect(screen.getByText("¥3,912.69")).toBeInTheDocument();
-  expect(screen.getByText(/ROI 未达标/)).toBeInTheDocument();
+  expect(screen.getByText(/综合营销 ROI 未达标/)).toBeInTheDocument();
   expect(screen.getByText(/先收缩低效素材/)).toBeInTheDocument();
 });

@@ -4,7 +4,7 @@ import { ChatReportCard } from "../components/ChatReportCard";
 
 const REPORT = `## 直播盯盘报表 · 10-20 14:25
 
-> 质润官方旗舰店　|　目标 ROI 2.80　|　数据源 cdp
+> 质润官方旗舰店　|　综合营销ROI目标 2.80　|　数据源 cdp
 
 ### 实时数据
 
@@ -16,7 +16,7 @@ const REPORT = `## 直播盯盘报表 · 10-20 14:25
 
 ### 发现的问题
 
-- **ROI 未达标** — 当前 2.19，目标 2.80，先看承接和素材效率。
+- **综合营销 ROI 未达标** — 当前 2.19，目标 2.80，先看承接和素材效率。
 
 ### 调整方案（需你确认）
 
@@ -34,7 +34,7 @@ test("chat report card keeps the operator summary visible and details collapsed"
   expect(screen.getAllByText("直播盯盘报表 · 10-20 14:25").length).toBeGreaterThan(0);
   expect(screen.getAllByText("综合营销 ROI").length).toBeGreaterThan(0);
   expect(screen.getAllByText("2.19").length).toBeGreaterThan(0);
-  expect(screen.getAllByText(/ROI 未达标/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/综合营销 ROI 未达标/).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/先暂停低效追投/).length).toBeGreaterThan(0);
   expect(screen.getByText("展开完整报表")).toBeInTheDocument();
 
@@ -43,4 +43,3 @@ test("chat report card keeps the operator summary visible and details collapsed"
   expect(details?.open).toBe(false);
   expect(container.querySelector(".report-message")).not.toBeNull();
 });
-

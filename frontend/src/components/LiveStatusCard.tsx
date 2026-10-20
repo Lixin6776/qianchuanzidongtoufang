@@ -138,9 +138,9 @@ export function LiveStatusCard({
 
   const metrics: StatusMetric[] = [
     {
-      label: "ROI",
+      label: "综合营销 ROI",
       value: formatRatio(report?.roi),
-      detail: report?.roi_target == null ? "未配置目标" : `目标 ${formatRatio(report.roi_target)}`,
+      detail: report?.roi_target == null ? "综合营销ROI目标未配置" : `综合营销ROI目标 ${formatRatio(report.roi_target)}`,
       tone: report?.roi == null || report.roi_target == null
         ? "muted"
         : report.roi < report.roi_target
