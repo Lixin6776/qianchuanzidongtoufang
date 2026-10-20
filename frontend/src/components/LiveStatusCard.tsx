@@ -188,13 +188,17 @@ export function LiveStatusCard({
     <section className={`live-status-card live-status-${tone}`} aria-label="实时盯盘状态">
       <header className="live-status-head">
         <div className="live-status-heading">
-          <span className="live-status-kicker">LIVE OPS · 5 分钟盯盘</span>
+          <span className="live-status-kicker">
+            <i className="live-status-pulse" aria-hidden="true" />
+            LIVE OPS · 5 分钟盯盘
+          </span>
           <div className="live-status-titleline">
             <h2>实时盯盘状态</h2>
             <span>{roomName}</span>
           </div>
         </div>
         <div className="live-status-meta">
+          <span className="live-status-source">{report?.source ? report.source.toUpperCase() : "WAIT"}</span>
           <span className={`live-status-badge live-status-badge-${tone}`}>{toneLabel(tone)}</span>
           <time>{loading ? "读取中" : `更新于 ${formatTime(observedAt)}`}</time>
         </div>

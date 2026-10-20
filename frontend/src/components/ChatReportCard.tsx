@@ -131,7 +131,7 @@ export function ChatReportCard({ content }: { content: string }) {
     <article className={`chat-report-card${hasIssue ? " chat-report-has-issue" : ""}`}>
       <header className="chat-report-head">
         <div>
-          <span className="chat-report-kind">{summary.kind}</span>
+          <span className="chat-report-kind"><i aria-hidden="true" />{summary.kind}</span>
           <h3>{summary.title}</h3>
         </div>
         <span className={`chat-report-status${hasIssue ? " is-issue" : ""}`}>{statusLabel}</span>
