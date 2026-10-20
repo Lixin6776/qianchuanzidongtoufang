@@ -128,10 +128,6 @@ export function LiveStatusCard({
     };
   }, [providedReport, load, refreshMs]);
 
-  const flowPerMinute = report?.spend_delta === null || report?.spend_delta === undefined
-    ? null
-    : report.spend_delta / 5;
-
   const roiProgress = report?.roi != null && report.roi_target
     ? Math.max(0, Math.min(100, (report.roi / report.roi_target) * 100))
     : undefined;
@@ -157,12 +153,18 @@ export function LiveStatusCard({
       primary: true
     },
     {
-      label: "消耗流速",
-      value: flowPerMinute === null ? "--" : `¥${numberFormat.format(flowPerMinute)}/分`,
+      label: "近5分钟消耗金额",
+      value: report?.spend_delta === null || report?.spend_delta === undefined
+        ? "--"
+        : formatMoney(report.spend_delta),
       detail: report?.spend_delta === null || report?.spend_delta === undefined
         ? "暂无增量数据"
-        : `5 分钟增量 ${formatMoney(report.spend_delta)}`,
-      tone: flowPerMinute === null ? "muted" : flowPerMinute <= 0 ? "danger" : "success"
+        : "最近一个采样周期",
+      tone: report?.spend_delta === null || report?.spend_delta === undefined
+        ? "muted"
+        : report.spend_delta <= 0
+          ? "danger"
+          : "success"
     },
     {
       label: "实时在线",

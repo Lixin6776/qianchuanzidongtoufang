@@ -34,14 +34,14 @@ test("live status card surfaces the latest room and operator metrics", () => {
   expect(Array.from(container.querySelectorAll(".live-status-metric-label > span")).map((node) => node.textContent)).toEqual([
     "综合营销 ROI",
     "GPM",
-    "消耗流速",
+    "近5分钟消耗金额",
     "实时在线",
     "CPM"
   ]);
   expect(screen.getByLabelText("目标达成 78%")).toBeInTheDocument();
   expect(screen.getByText("质润官方旗舰店")).toBeInTheDocument();
   expect(screen.getByText("需要关注")).toBeInTheDocument();
-  expect(screen.getByText("¥10/分")).toBeInTheDocument();
+  expect(screen.getByText("¥50")).toBeInTheDocument();
   expect(screen.getByText("2.19")).toBeInTheDocument();
   expect(screen.getByText("¥86.88")).toBeInTheDocument();
   expect(screen.getByText("¥3,912.69")).toBeInTheDocument();
