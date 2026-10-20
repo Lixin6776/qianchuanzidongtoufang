@@ -384,16 +384,26 @@ export type CdpConnectionStatus = {
 export type LiveWatchReport = {
   id: string;
   created_at: string;
+  captured_at?: string | null;
   level: string;
   source: string;
   roi: number | null;
   spend: number;
   gmv: number;
   gpm: number | null;
+  cpm?: number | null;
   online_viewers: number;
   orders: number;
   spend_delta: number | null;
   roi_target: number | null;
+  exposure_view_rate?: number | null;
+  view_conversion_rate?: number | null;
+  views?: number | null;
+  room_name?: string | null;
+  live_started_at?: string | null;
+  live_room_id?: string | null;
+  session_status?: string | null;
+  verify_passed?: boolean | null;
   problems: string[];
   adjustments: string[];
   operations: Array<{

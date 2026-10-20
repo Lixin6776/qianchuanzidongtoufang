@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { ReportMessage } from "./ReportMessage";
+import { ChatReportCard } from "./ChatReportCard";
 import { MAX_CHAT_IMAGES, pickImages, type PickedImage } from "../lib/images";
 
 export type ActionPreview = {
@@ -75,7 +75,7 @@ function MessageContent({ content }: { content: string }) {
   const displayContent = unwrapJsonMessage(content);
   // 复盘 / 素材分析 / 直播盯盘等报表统一走 Markdown 排版
   if (/^##\s/.test(displayContent)) {
-    return <ReportMessage content={displayContent} />;
+    return <ChatReportCard content={displayContent} />;
   }
   const card = parseStrategyCard(displayContent);
   if (!card) return <p className="message-text">{displayContent}</p>;

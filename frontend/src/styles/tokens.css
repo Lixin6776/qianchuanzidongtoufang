@@ -1078,3 +1078,352 @@ body { font-size: 14px; line-height: 1.5; }
 .asset-scenario-card { border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 12px; background: var(--color-surface); }
 .asset-scenario-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .asset-scenario-card table { width: 100%; font-size: 12px; }
+
+/* ---- 顶部实时盯盘状态卡 ---- */
+.live-status-card {
+  margin: 12px 32px 0;
+  padding: 14px 18px 16px;
+  border: 1px solid #dfe4ec;
+  border-left: 4px solid #8f959e;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(29, 33, 41, 0.04);
+}
+.live-status-success { border-left-color: #2ea36a; }
+.live-status-warning { border-left-color: #e6a23c; }
+.live-status-danger { border-left-color: #e5484d; }
+.live-status-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.live-status-heading { min-width: 0; }
+.live-status-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: #8a919f;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.live-status-titleline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.live-status-titleline h2 {
+  margin: 0;
+  color: #1d2129;
+  font-size: 17px;
+  font-weight: 600;
+}
+.live-status-titleline > span {
+  overflow: hidden;
+  color: #646a73;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-status-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  color: #8a919f;
+  font-size: 12px;
+}
+.live-status-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.live-status-badge-success { background: #eaf7ef; color: #1e7a4b; }
+.live-status-badge-warning { background: #fff5e5; color: #a9660d; }
+.live-status-badge-danger { background: #feebec; color: #c52a30; }
+.live-status-badge-muted { background: #f2f3f5; color: #646a73; }
+.live-status-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.live-status-metric {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+.live-status-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #7a8190;
+  font-size: 12px;
+}
+.live-status-metric-head > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #b8bdc7;
+  box-shadow: 0 0 0 3px rgba(184, 189, 199, 0.14);
+}
+.live-status-dot-success { background: #2ea36a; box-shadow: 0 0 0 3px rgba(46, 163, 106, 0.12); }
+.live-status-dot-warning { background: #e6a23c; box-shadow: 0 0 0 3px rgba(230, 162, 60, 0.13); }
+.live-status-dot-danger { background: #e5484d; box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.12); }
+.live-status-metric strong {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #1d2129;
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-status-metric small {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #8a919f;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-status-insights {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.live-status-insights > div {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #f7f8fa;
+}
+.live-status-insights span {
+  color: #8a919f;
+  font-size: 12px;
+  font-weight: 600;
+}
+.live-status-insights p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #4e5969;
+  font-size: 12px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ---- 聊天报表摘要卡 ---- */
+.chat-report-card {
+  width: min(680px, 100%);
+  overflow: hidden;
+  border: 1px solid #dfe4ec;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(29, 33, 41, 0.035);
+}
+.chat-report-has-issue { border-color: #f0d4aa; }
+.chat-report-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px 10px;
+  background: linear-gradient(180deg, #fbfcfe 0%, #fff 100%);
+}
+.chat-report-kind {
+  display: block;
+  margin-bottom: 2px;
+  color: #3370ff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.chat-report-head h3 {
+  margin: 0;
+  color: #1d2129;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.chat-report-status {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #edf7f1;
+  color: #1e7a4b;
+  font-size: 11px;
+  font-weight: 600;
+}
+.chat-report-status.is-issue { background: #fff5e5; color: #a9660d; }
+.chat-report-subtitle {
+  margin: 0;
+  padding: 0 15px 10px;
+  overflow: hidden;
+  color: #7a8190;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-report-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 15px 11px;
+}
+.chat-report-metrics > div {
+  min-width: 0;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: #f7f8fa;
+}
+.chat-report-metrics span {
+  display: block;
+  overflow: hidden;
+  color: #8a919f;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-report-metrics strong {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  color: #1d2129;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-report-callout {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0 15px 8px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: #f7f8fa;
+}
+.chat-report-callout > span {
+  color: #7a8190;
+  font-size: 11px;
+  font-weight: 600;
+}
+.chat-report-callout p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #4e5969;
+  font-size: 12px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.chat-report-issue { background: #fff8ed; }
+.chat-report-issue > span { color: #a9660d; }
+.chat-report-action { background: #f2f6ff; }
+.chat-report-action > span { color: #3370ff; }
+.chat-report-details {
+  border-top: 1px solid #edf0f4;
+}
+.chat-report-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 15px;
+  color: #3370ff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.chat-report-details > summary::-webkit-details-marker { display: none; }
+.chat-report-details > summary::after {
+  content: "▾";
+  color: #8a919f;
+  font-size: 11px;
+}
+.chat-report-details[open] > summary::after { content: "▴"; }
+.chat-report-details > summary small {
+  margin-left: auto;
+  color: #8a919f;
+  font-size: 11px;
+  font-weight: 400;
+}
+.chat-report-full {
+  padding: 14px 15px 16px;
+  border-top: 1px solid #edf0f4;
+  background: #fff;
+}
+
+@media (max-width: 980px) {
+  .live-status-card { margin: 10px 16px 0; padding: 12px 14px; }
+  .live-status-head { flex-wrap: wrap; }
+  .live-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .live-status-insights { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .live-status-grid { grid-template-columns: 1fr 1fr; }
+  .live-status-meta { width: 100%; justify-content: space-between; }
+  .chat-report-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chat-report-head { flex-wrap: wrap; }
+}
+
+/* ---- 顶部策略栏信息降噪 ---- */
+.strategy-banner-content { min-width: 0; gap: 10px; }
+.strategy-version,
+.strategy-freshness,
+.strategy-banner-content > time { flex: 0 0 auto; }
+.strategy-direction,
+.strategy-objective {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.strategy-objective { max-width: 360px; }
+.strategy-constraints {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.strategy-constraints span {
+  padding: 2px 6px;
+  border: 1px solid #e5e6eb;
+  border-radius: 999px;
+  background: #f7f8fa;
+  color: #646a73;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+@media (max-width: 1180px) {
+  .strategy-objective { max-width: 230px; }
+  .strategy-direction { max-width: 180px; }
+}
+@media (max-width: 980px) {
+  .strategy-banner-content { overflow-x: auto; gap: 8px; padding-bottom: 2px; }
+  .strategy-direction,
+  .strategy-objective { max-width: 180px; }
+}

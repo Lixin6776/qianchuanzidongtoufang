@@ -5,6 +5,7 @@ import { ApiConnectionPanel } from "./components/ApiConnectionPanel";
 import { ChatPanel, type ActionPreview, type ChatReply } from "./components/ChatPanel";
 import { LiveReviewList, type LiveReview } from "./components/LiveReviewList";
 import { LiveWatchPanel } from "./components/LiveWatchPanel";
+import { LiveStatusCard } from "./components/LiveStatusCard";
 import { OnboardingGuide } from "./components/OnboardingGuide";
 import { DataAssetPanel } from "./components/DataAssetPanel";
 import { OpsChatPanel } from "./components/OpsChatPanel";
@@ -81,7 +82,17 @@ export default function App() {
 
   useEffect(() => {
     getActiveProfile()
-      .then((value) => setProfile(value as StrategyBannerProfile))
+      .then((value) => {
+        const raw = value as Partial<StrategyBannerProfile>;
+        setProfile({
+          version: raw.version ?? 0,
+          business_direction: raw.business_direction ?? "未加载",
+          primary_objective: raw.primary_objective ?? "等待本地服务返回投放策略",
+          hard_constraints: raw.hard_constraints ?? {},
+          data_time: raw.data_time ?? raw.effective_at ?? raw.created_at ?? new Date().toISOString(),
+          freshness: "fresh"
+        });
+      })
       .catch(() => setProfile(fallbackProfile));
     getExecutionJobs().then((value) => setJobs(value as ExecutionJob[])).catch(() => undefined);
     getLiveReviews().then(setReviews).catch(() => undefined);
@@ -249,6 +260,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <StrategyBanner profile={profile} />
+      <LiveStatusCard />
       <PlanSnapshotPanel event={monitorEvent} />
       <OnboardingGuide
         onOpenWindow={(windowId) => windowId && setActiveWindow(windowId as ToolWindow)}
