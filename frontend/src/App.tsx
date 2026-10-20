@@ -4,7 +4,6 @@ import { ActionParameterForm } from "./components/ActionParameterForm";
 import { ApiConnectionPanel } from "./components/ApiConnectionPanel";
 import { ChatPanel, type ActionPreview, type ChatReply } from "./components/ChatPanel";
 import { LiveReviewList, type LiveReview } from "./components/LiveReviewList";
-import { LiveWatchPanel } from "./components/LiveWatchPanel";
 import { LiveStatusCard } from "./components/LiveStatusCard";
 import { OnboardingGuide } from "./components/OnboardingGuide";
 import { DataAssetPanel } from "./components/DataAssetPanel";
@@ -208,9 +207,6 @@ export default function App() {
   }
 
   function renderWindow() {
-    if (activeWindow === "live_watch") {
-      return <LiveWatchPanel />;
-    }
     if (activeWindow === "decisions") {
       // 「决策」= 判断标准（阈值由你来定）
       return <ThresholdPanel />;
@@ -261,7 +257,10 @@ export default function App() {
       <StrategyBanner profile={profile} />
       <LiveStatusCard />
       <OnboardingGuide
-        onOpenWindow={(windowId) => windowId && setActiveWindow(windowId as ToolWindow)}
+        onOpenWindow={(windowId) => {
+          if (!windowId) return;
+          setActiveWindow(windowId === "live_watch" ? null : windowId as ToolWindow);
+        }}
         onTick={() => {
           // 引导里的"立即读取"：直接触发一轮盯盘
           tickLiveWatch().catch(() => undefined);
@@ -276,7 +275,7 @@ export default function App() {
                 className={isActive ? "tool-nav-item active" : "tool-nav-item"}
                 key={item.id}
                 type="button"
-                onClick={() => setActiveWindow(item.id)}
+                onClick={() => setActiveWindow(item.id === "live_watch" ? null : item.id)}
               >
                 <span className="tool-nav-main">
                   <span className="tool-nav-short" aria-hidden="true">{item.short}</span>
@@ -287,33 +286,30 @@ export default function App() {
           })}
         </nav>
         <main className="chat-main">
-          <ChatPanel
-            incomingMessage={incomingMessage}
-            resetKey={chatResetKey}
-            onSend={handleSend}
-            onOpenConfirmation={setSelectedPreview}
-          />
+          {activeWindow ? (
+            <section className="main-tool-window panel" role="region" aria-label={activeLabel}>
+              <header className="main-tool-window-header">
+                <div>
+                  <p className="eyebrow">LIVE OPS · MODULE</p>
+                  <h1>{activeLabel}</h1>
+                </div>
+                <button className="button-outline" type="button" onClick={() => setActiveWindow(null)}>
+                  返回直播盯盘
+                </button>
+              </header>
+              <div className="main-tool-window-body">{renderWindow()}</div>
+            </section>
+          ) : (
+            <ChatPanel
+              incomingMessage={incomingMessage}
+              resetKey={chatResetKey}
+              onSend={handleSend}
+              onOpenConfirmation={setSelectedPreview}
+            />
+          )}
         </main>
       </div>
-      {activeWindow ? (
-        <div className="tool-window-backdrop" role="presentation" onClick={() => setActiveWindow(null)}>
-          <section
-            className="tool-window"
-            role="dialog"
-            aria-modal="true"
-            aria-label={activeLabel}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className="tool-window-header">
-              <h2>{activeLabel}</h2>
-              <button className="button-outline" type="button" onClick={() => setActiveWindow(null)}>
-                关闭
-              </button>
-            </header>
-            <div className="tool-window-body">{renderWindow()}</div>
-          </section>
-        </div>
-      ) : null}
+
       {selectedPreview ? (
         <ConfirmationDialog
           preview={{ ...selectedPreview, constraints: profile.hard_constraints }}

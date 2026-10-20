@@ -1901,3 +1901,62 @@ body {
   .message-user { max-width: 92%; }
   .chat-report-head h3 { font-size: 14px; }
 }
+
+/* Embedded module workspace: every tool stays in the main live-ops window */
+.main-tool-window {
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-color: rgba(154, 174, 205, 0.34);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.055), transparent 24%),
+    linear-gradient(180deg, #fbfdff 0%, #ffffff 22%);
+  box-shadow: 0 14px 34px rgba(35, 64, 112, 0.06);
+}
+.main-tool-window-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e7edf6;
+}
+.main-tool-window-header .eyebrow {
+  margin-bottom: 2px;
+  color: #3b82f6;
+}
+.main-tool-window-header h1 {
+  margin: 0;
+  color: #10213f;
+  font-size: 24px;
+}
+.main-tool-window-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.main-tool-window-body > .panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.main-tool-window-body > .window-stack { gap: 16px; }
+.main-tool-window .button-outline {
+  flex: 0 0 auto;
+  border-color: #d7e3f3;
+  color: #2f5f9f;
+  background: #f7faff;
+}
+.main-tool-window .button-outline:hover {
+  border-color: #a9c8f8;
+  background: #eef5ff;
+}
+@media (max-width: 620px) {
+  .main-tool-window { min-height: 460px; }
+  .main-tool-window-header { align-items: center; gap: 10px; }
+  .main-tool-window-header h1 { font-size: 20px; }
+  .main-tool-window-header .button-outline { padding: 5px 9px; font-size: 12px; }
+}

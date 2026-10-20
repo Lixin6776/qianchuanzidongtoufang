@@ -179,17 +179,19 @@ test("chat panel exposes a structured action preview for confirmation", async ()
 });
 
 
-test("left navigation opens a floating tool window", async () => {
+test("left navigation opens a tool inside the main workspace", async () => {
   render(<App />);
   fireEvent.click(await screen.findByRole("button", { name: "大模型" }));
-  expect(await screen.findByRole("dialog", { name: "大模型" })).toBeInTheDocument();
+  expect(await screen.findByRole("region", { name: "大模型" })).toBeInTheDocument();
+  expect(screen.queryByRole("dialog", { name: "大模型" })).not.toBeInTheDocument();
   expect(await screen.findByText("DeepSeek 大模型")).toBeInTheDocument();
 });
 
 
-test("left navigation opens feishu connection window", async () => {
+test("left navigation opens feishu in the main workspace", async () => {
   render(<App />);
   fireEvent.click(await screen.findByRole("button", { name: "飞书" }));
-  expect(await screen.findByRole("dialog", { name: "飞书" })).toBeInTheDocument();
+  expect(await screen.findByRole("region", { name: "飞书" })).toBeInTheDocument();
+  expect(screen.queryByRole("dialog", { name: "飞书" })).not.toBeInTheDocument();
   expect(await screen.findByText("尚未连接飞书")).toBeInTheDocument();
 });
