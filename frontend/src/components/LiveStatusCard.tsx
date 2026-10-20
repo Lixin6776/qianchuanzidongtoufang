@@ -29,10 +29,6 @@ function formatMoney(value: number | null | undefined) {
   return value === null || value === undefined ? "--" : `¥${numberFormat.format(value)}`;
 }
 
-function formatPercent(value: number | null | undefined) {
-  return value === null || value === undefined ? "--" : `${value.toFixed(2)}%`;
-}
-
 function formatTime(value: string | undefined) {
   if (!value) return "等待首次读取";
   const date = new Date(value);
@@ -166,10 +162,10 @@ export function LiveStatusCard({
       tone: issueTone(report, /CPM/i)
     },
     {
-      label: "曝光观看率",
-      value: formatPercent(report?.exposure_view_rate),
-      detail: "进入效率",
-      tone: issueTone(report, /曝光观看率/)
+      label: "GPM",
+      value: formatMoney(report?.gpm),
+      detail: "千次观看成交",
+      tone: issueTone(report, /GPM/i)
     }
   ];
 
@@ -221,4 +217,3 @@ export function LiveStatusCard({
     </section>
   );
 }
-

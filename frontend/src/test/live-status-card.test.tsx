@@ -36,7 +36,7 @@ test("live status card surfaces the latest room and operator metrics", () => {
   expect(screen.getByText("¥10/分")).toBeInTheDocument();
   expect(screen.getByText("2.19")).toBeInTheDocument();
   expect(screen.getByText("¥86.88")).toBeInTheDocument();
-  expect(screen.getByText("3.48%")).toBeInTheDocument();
+  expect(screen.getByText("¥3,912.69")).toBeInTheDocument();
   expect(screen.getByText(/ROI 未达标/)).toBeInTheDocument();
   expect(screen.getByText(/先收缩低效素材/)).toBeInTheDocument();
 });
