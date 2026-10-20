@@ -10,6 +10,8 @@ type StatusMetric = {
   value: string;
   detail: string;
   tone: Tone;
+  primary?: boolean;
+  progress?: number;
 };
 
 const numberFormat = new Intl.NumberFormat("zh-CN", {
@@ -130,7 +132,30 @@ export function LiveStatusCard({
     ? null
     : report.spend_delta / 5;
 
+  const roiProgress = report?.roi != null && report.roi_target
+    ? Math.max(0, Math.min(100, (report.roi / report.roi_target) * 100))
+    : undefined;
+
   const metrics: StatusMetric[] = [
+    {
+      label: "ROI",
+      value: formatRatio(report?.roi),
+      detail: report?.roi_target == null ? "未配置目标" : `目标 ${formatRatio(report.roi_target)}`,
+      tone: report?.roi == null || report.roi_target == null
+        ? "muted"
+        : report.roi < report.roi_target
+          ? "danger"
+          : "success",
+      primary: true,
+      progress: roiProgress
+    },
+    {
+      label: "GPM",
+      value: formatMoney(report?.gpm),
+      detail: "千次观看成交",
+      tone: issueTone(report, /GPM/i),
+      primary: true
+    },
     {
       label: "消耗流速",
       value: flowPerMinute === null ? "--" : `¥${numberFormat.format(flowPerMinute)}/分`,
@@ -146,26 +171,10 @@ export function LiveStatusCard({
       tone: issueTone(report, /在线|人数/)
     },
     {
-      label: "ROI",
-      value: formatRatio(report?.roi),
-      detail: report?.roi_target == null ? "未配置目标" : `目标 ${formatRatio(report.roi_target)}`,
-      tone: report?.roi == null || report.roi_target == null
-        ? "muted"
-        : report.roi < report.roi_target
-          ? "danger"
-          : "success"
-    },
-    {
       label: "CPM",
       value: formatMoney(report?.cpm),
       detail: "千次曝光成本",
       tone: issueTone(report, /CPM/i)
-    },
-    {
-      label: "GPM",
-      value: formatMoney(report?.gpm),
-      detail: "千次观看成交",
-      tone: issueTone(report, /GPM/i)
     }
   ];
 
@@ -193,13 +202,27 @@ export function LiveStatusCard({
 
       <div className="live-status-grid">
         {metrics.map((metric) => (
-          <article className="live-status-metric" key={metric.label}>
+          <article
+            className={`live-status-metric${metric.primary ? " live-status-metric-primary" : ""} live-status-metric-${metric.tone}`}
+            key={metric.label}
+          >
             <div className="live-status-metric-head">
-              <span>{metric.label}</span>
+              <div className="live-status-metric-label">
+                <span>{metric.label}</span>
+                {metric.primary ? <em>核心</em> : null}
+              </div>
               <i className={`live-status-dot live-status-dot-${metric.tone}`} aria-label={toneLabel(metric.tone)} />
             </div>
             <strong>{metric.value}</strong>
             <small>{metric.detail}</small>
+            {metric.progress !== undefined ? (
+              <div
+                className={`live-status-progress live-status-progress-${metric.tone}`}
+                aria-label={`目标达成 ${Math.round(metric.progress)}%`}
+              >
+                <span style={{ width: `${metric.progress}%` }} />
+              </div>
+            ) : null}
           </article>
         ))}
       </div>

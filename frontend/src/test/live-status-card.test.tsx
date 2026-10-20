@@ -29,8 +29,16 @@ const report: LiveWatchReport = {
 };
 
 test("live status card surfaces the latest room and operator metrics", () => {
-  render(<LiveStatusCard report={report} refreshMs={0} />);
+  const { container } = render(<LiveStatusCard report={report} refreshMs={0} />);
 
+  expect(Array.from(container.querySelectorAll(".live-status-metric-label > span")).map((node) => node.textContent)).toEqual([
+    "ROI",
+    "GPM",
+    "消耗流速",
+    "实时在线",
+    "CPM"
+  ]);
+  expect(screen.getByLabelText("目标达成 78%")).toBeInTheDocument();
   expect(screen.getByText("质润官方旗舰店")).toBeInTheDocument();
   expect(screen.getByText("需要关注")).toBeInTheDocument();
   expect(screen.getByText("¥10/分")).toBeInTheDocument();

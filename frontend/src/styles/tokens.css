@@ -1146,18 +1146,38 @@ body { font-size: 14px; line-height: 1.5; }
 .live-status-badge-muted { background: #f2f3f5; color: #646a73; }
 .live-status-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr 1fr;
   gap: 8px;
   margin-top: 12px;
 }
 .live-status-metric {
+  position: relative;
   min-width: 0;
-  padding: 9px 11px;
+  padding: 10px 12px;
+  overflow: hidden;
   border: 1px solid #edf0f4;
-  border-radius: 8px;
+  border-radius: 9px;
   background: #fafbfc;
 }
+.live-status-metric-primary {
+  border-color: #cedbf5;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(51, 112, 255, 0.12), transparent 42%),
+    linear-gradient(145deg, #f4f7ff 0%, #fff 76%);
+}
+.live-status-metric-primary::after {
+  position: absolute;
+  right: -16px;
+  bottom: -24px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(51, 112, 255, 0.045);
+  content: "";
+}
 .live-status-metric-head {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1165,10 +1185,26 @@ body { font-size: 14px; line-height: 1.5; }
   color: #7a8190;
   font-size: 12px;
 }
-.live-status-metric-head > span {
+.live-status-metric-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.live-status-metric-label > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.live-status-metric-label em {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #e8f0ff;
+  color: #3370ff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 16px;
 }
 .live-status-dot {
   width: 7px;
@@ -1182,6 +1218,8 @@ body { font-size: 14px; line-height: 1.5; }
 .live-status-dot-warning { background: #e6a23c; box-shadow: 0 0 0 3px rgba(230, 162, 60, 0.13); }
 .live-status-dot-danger { background: #e5484d; box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.12); }
 .live-status-metric strong {
+  position: relative;
+  z-index: 1;
   display: block;
   margin-top: 3px;
   overflow: hidden;
@@ -1192,7 +1230,10 @@ body { font-size: 14px; line-height: 1.5; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.live-status-metric-primary strong { font-size: 26px; letter-spacing: -0.02em; }
 .live-status-metric small {
+  position: relative;
+  z-index: 1;
   display: block;
   margin-top: 2px;
   overflow: hidden;
@@ -1200,6 +1241,34 @@ body { font-size: 14px; line-height: 1.5; }
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.live-status-progress {
+  position: relative;
+  z-index: 1;
+  height: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e4e9f5;
+}
+.live-status-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6f9cff, #3370ff);
+}
+.live-status-progress-success > span { background: linear-gradient(90deg, #76c997, #2ea36a); }
+.live-status-progress-warning > span { background: linear-gradient(90deg, #f3c16d, #e6a23c); }
+.live-status-progress-danger > span { background: linear-gradient(90deg, #f08b8f, #e5484d); }
+.live-status-metric-primary.live-status-metric-danger {
+  border-color: #f0c8ca;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(229, 72, 77, 0.11), transparent 42%),
+    linear-gradient(145deg, #fff6f6 0%, #fff 76%);
+}
+.live-status-metric-primary.live-status-metric-danger .live-status-metric-label em {
+  background: #feebec;
+  color: #c52a30;
 }
 .live-status-insights {
   display: grid;
@@ -1211,10 +1280,13 @@ body { font-size: 14px; line-height: 1.5; }
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
   gap: 8px;
-  padding: 7px 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
   border-radius: 7px;
   background: #f7f8fa;
 }
+.live-status-insights > div:first-child { border-color: #f5dfbd; background: #fffaf2; }
+.live-status-insights > div:last-child { border-color: #dce7ff; background: #f5f8ff; }
 .live-status-insights span {
   color: #8a919f;
   font-size: 12px;
