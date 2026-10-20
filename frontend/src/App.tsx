@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ActionParameterForm } from "./components/ActionParameterForm";
 import { ApiConnectionPanel } from "./components/ApiConnectionPanel";
@@ -77,6 +77,25 @@ export default function App() {
   const [opsIncoming, setOpsIncoming] = useState<{ id: string; content: string } | null>(null);
   const [activeWindow, setActiveWindow] = useState<ToolWindow | null>(null);
   const [chatResetKey, setChatResetKey] = useState(0);
+  const navRef = useRef<HTMLElement | null>(null);
+  const [mainWindowHeight, setMainWindowHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const updateHeight = () => {
+      const height = nav.getBoundingClientRect().height;
+      setMainWindowHeight(window.innerWidth > 980 && height > 0 ? Math.ceil(height) : null);
+    };
+    updateHeight();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateHeight) : null;
+    observer?.observe(nav);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   useEffect(() => {
     getActiveProfile()
@@ -267,7 +286,7 @@ export default function App() {
         }}
       />
       <div className="workspace byte-workspace">
-        <nav className="tool-nav panel" aria-label="功能导航">
+        <nav className="tool-nav panel" aria-label="功能导航" ref={navRef}>
           {tools.map((item) => {
             const isActive = activeWindow === item.id || (item.id === "live_watch" && activeWindow === null);
             return (
@@ -285,7 +304,7 @@ export default function App() {
             );
           })}
         </nav>
-        <main className="chat-main">
+        <main className="chat-main" style={mainWindowHeight ? { height: `${mainWindowHeight}px` } : undefined}>
           {activeWindow ? (
             <section className="main-tool-window panel" role="region" aria-label={activeLabel}>
               <header className="main-tool-window-header">
