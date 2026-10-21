@@ -2003,3 +2003,47 @@ body {
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* Compact live diagnostics: default one line, details on demand */
+.live-status-diagnostics {
+  margin-top: 10px;
+  border-top: 1px solid rgba(126, 157, 199, 0.14);
+}
+.live-status-diagnostics > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 9px;
+  color: #a8bdd9;
+  cursor: pointer;
+  list-style: none;
+}
+.live-status-diagnostics > summary::-webkit-details-marker { display: none; }
+.live-status-diagnostics > summary::after {
+  margin-left: 2px;
+  color: #6f89ad;
+  font-size: 11px;
+  content: "▾";
+}
+.live-status-diagnostics[open] > summary::after { content: "▴"; }
+.live-status-diagnostics > summary strong {
+  color: #d5e3f5;
+  font-size: 12px;
+  font-weight: 600;
+}
+.live-status-summary-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+.live-status-summary-dot-success { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.55); }
+.live-status-summary-dot-warning { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.5); }
+.live-status-summary-dot-danger { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, 0.55); }
+.live-status-summary-hint {
+  margin-left: auto;
+  color: #728aae;
+  font-size: 11px;
+}
+.live-status-diagnostics .live-status-insights { margin-top: 8px; }

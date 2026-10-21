@@ -249,16 +249,27 @@ export function LiveStatusCard({
         ))}
       </div>
 
-      <div className="live-status-insights">
-        <div>
-          <span>当前发现</span>
-          <p>{error || problem || "本轮未返回异常项"}</p>
+      <details className="live-status-diagnostics">
+        <summary>
+          <span className={`live-status-summary-dot live-status-summary-dot-${tone}`} aria-hidden="true" />
+          <strong>
+            {problem || error
+              ? `发现 ${report?.problems?.filter((item) => item.trim()).length ?? 1} 项问题`
+              : "本周期未发现异常"}
+          </strong>
+          <span className="live-status-summary-hint">查看归因与建议</span>
+        </summary>
+        <div className="live-status-insights">
+          <div>
+            <span>当前发现</span>
+            <p>{error || problem || "本轮未返回异常项"}</p>
+          </div>
+          <div>
+            <span>建议动作</span>
+            <p>{adjustment || "暂无调整建议，继续观察下一周期"}</p>
+          </div>
         </div>
-        <div>
-          <span>建议动作</span>
-          <p>{adjustment || "暂无调整建议，继续观察下一周期"}</p>
-        </div>
-      </div>
+      </details>
     </section>
   );
 }

@@ -141,7 +141,7 @@ export function ChatReportCard({ content }: { content: string }) {
 
       {summary.metrics.length ? (
         <div className="chat-report-metrics">
-          {summary.metrics.map((metric) => (
+          {summary.metrics.slice(0, 3).map((metric) => (
             <div key={metric.label}>
               <span>{metric.label}</span>
               <strong>{metric.value}</strong>
