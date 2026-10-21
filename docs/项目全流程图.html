@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>千川直播运营 Agent 全流程图</title>
+  <style>
+    :root {
+      --bg: #eef3fa;
+      --navy: #081a33;
+      --ink: #142640;
+      --muted: #60728f;
+      --blue: #2563eb;
+      --cyan: #06b6d4;
+      --green: #16a34a;
+      --amber: #f59e0b;
+      --red: #e11d48;
+      --line: #cfdbeb;
+      --card: rgba(255,255,255,.94);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 36px 44px 46px;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(37,99,235,.09), transparent 26%),
+        radial-gradient(circle at 92% 5%, rgba(6,182,212,.07), transparent 24%),
+        linear-gradient(rgba(96,114,143,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96,114,143,.045) 1px, transparent 1px),
+        var(--bg);
+      background-size: auto, auto, 26px 26px, 26px 26px, auto;
+    }
+    .hero {
+      max-width: 1360px;
+      margin: 0 auto 24px;
+      padding: 24px 28px;
+      border-radius: 16px;
+      color: #f7fbff;
+      background:
+        radial-gradient(circle at 90% 10%, rgba(34,211,238,.16), transparent 30%),
+        linear-gradient(135deg, #07172f, #0c2a52 58%, #071a35);
+      box-shadow: 0 18px 42px rgba(8,26,51,.17);
+    }
+    .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #8fdff1; letter-spacing: .08em; }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 12px rgba(34,211,238,.85); }
+    h1 { margin: 14px 0 7px; font-size: 32px; letter-spacing: -.02em; }
+    .subtitle { margin: 0; color: #a7bdd8; font-size: 15px; }
+    .hero-pipeline { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+    .hero-pipeline span { padding: 5px 10px; border: 1px solid rgba(115,164,225,.24); border-radius: 999px; background: rgba(255,255,255,.045); color: #c6d8ed; font-size: 12px; }
+    .badge { padding: 5px 10px; border: 1px solid rgba(34,211,238,.32); border-radius: 999px; background: rgba(34,211,238,.1); color: #7de7f6; font-size: 12px; }
+    .diagram { max-width: 1360px; margin: 0 auto; display: grid; gap: 12px; }
+    .row { display: grid; grid-template-columns: 260px 620px 260px; justify-content: center; align-items: center; gap: 24px; min-height: 132px; }
+    .step {
+      position: relative;
+      padding: 18px 20px;
+      border: 1px solid #d6e1ef;
+      border-radius: 13px;
+      background: var(--card);
+      box-shadow: 0 8px 22px rgba(31,62,108,.065);
+    }
+    .step::before { position: absolute; top: 0; right: 0; left: 0; height: 3px; border-radius: 13px 13px 0 0; background: linear-gradient(90deg, var(--blue), var(--cyan), transparent 88%); content: ""; }
+    .step.validation::before { background: linear-gradient(90deg, var(--amber), #fb7185, transparent 88%); }
+    .step.reflection::before { background: linear-gradient(90deg, #7c3aed, var(--cyan), transparent 88%); }
+    .step.output::before { background: linear-gradient(90deg, var(--green), var(--cyan), transparent 88%); }
+    .step.asset::before { background: linear-gradient(90deg, #0f766e, #22c55e, transparent 88%); }
+    .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .step-num { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: #0b2142; color: #76e2f5; font: 700 12px/1 Consolas, monospace; }
+    .step h2 { margin: 0; font-size: 19px; }
+    .step-sub { margin-left: auto; color: var(--muted); font-size: 11px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip { padding: 5px 9px; border: 1px solid #e1e8f2; border-radius: 6px; background: #f7faff; color: #40516b; font-size: 12px; }
+    .chip.key { border-color: #c8daf8; background: #edf4ff; color: #1f56b5; }
+    .chip.fail { border-color: #f3c8d1; background: #fff1f4; color: #b5223f; }
+    .side {
+      padding: 14px 16px;
+      border: 1px dashed #c5d3e5;
+      border-radius: 11px;
+      background: rgba(248,251,255,.78);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .side strong { display: block; margin-bottom: 3px; color: var(--ink); font-size: 13px; }
+    .side.loop { border-color: #a7e4d5; background: rgba(236,253,245,.82); color: #37695e; }
+    .side.stop { border-color: #f1c4cf; background: rgba(255,242,245,.85); color: #8d3046; }
+    .side.manual { border-color: #f0d7a9; background: rgba(255,250,235,.88); color: #7d6329; }
+    .arrow { height: 20px; display: grid; place-items: center; position: relative; }
+    .arrow::before { width: 2px; height: 12px; background: linear-gradient(var(--blue), var(--cyan)); content: ""; }
+    .arrow::after { position: absolute; top: 9px; width: 0; height: 0; border-top: 7px solid var(--cyan); border-right: 5px solid transparent; border-left: 5px solid transparent; content: ""; }
+    .reflection-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
+    .reflect-box { padding: 9px; border: 1px solid #e2dcf3; border-radius: 7px; background: #faf8ff; }
+    .reflect-box b { display: block; color: #5b31a8; font-size: 12px; }
+    .reflect-box span { display: block; margin-top: 2px; color: #6f6683; font-size: 11px; line-height: 1.45; }
+    .footer-loop {
+      max-width: 1360px;
+      margin: 18px auto 0;
+      padding: 17px 22px;
+      border: 1px solid #cfe0d7;
+      border-radius: 13px;
+      background: linear-gradient(90deg, #effcf6, #f8fffc 58%, #eef9ff);
+      color: #285044;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .loop-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: #0f766e; color: #fff; font-size: 20px; }
+    .footer-loop strong { display: block; margin-bottom: 3px; font-size: 15px; }
+    .footer-loop span { color: #55766d; font-size: 12px; }
+    .caption { max-width: 1360px; margin: 12px auto 0; color: #71829b; font-size: 11px; text-align: right; }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-top">
+      <div class="brand"><span class="brand-dot"></span>LIVE OPS · PROJECT FLOW</div>
+      <span class="badge">READ ONLY · HUMAN CONFIRM</span>
+    </div>
+    <h1>千川直播运营 Agent · 项目全流程图</h1>
+    <p class="subtitle">确定性数据管线 + Reflection 审查修订 + 操作结果反馈学习</p>
+    <div class="hero-pipeline">
+      <span>采集</span><span>校验</span><span>实时分析</span><span>运营分析</span><span>Reflection</span><span>输出</span><span>结果学习</span>
+    </div>
+  </header>
+
+  <main class="diagram">
+    <div class="row">
+      <div class="side"><strong>数据源</strong>只读接入本机 Chrome CDP 或开放平台 API；不直接修改账户。</div>
+      <section class="step">
+        <div class="step-head"><span class="step-num">01</span><h2>数据采集</h2><span class="step-sub">5 MIN / EVENT</span></div>
+        <div class="chips"><span class="chip key">直播大屏</span><span class="chip">消耗 / GMV / ROI</span><span class="chip">GPM / CPM / 在线</span><span class="chip">素材明细</span><span class="chip">千川操作日志</span><span class="chip">直播场次</span></div>
+      </section>
+      <div class="side loop"><strong>5 分钟循环</strong>直播进行中，持续读取并生成新快照；直播结束后停止轮询。</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="row">
+      <div class="side"></div>
+      <section class="step validation">
+        <div class="step-head"><span class="step-num">02</span><h2>数据可信校验</h2><span class="step-sub">HARD GATE</span></div>
+        <div class="chips"><span class="chip key">完整性</span><span class="chip">ROI = GMV / 消耗</span><span class="chip">漏斗不倒挂</span><span class="chip">基础 + 追投对账</span><span class="chip">数值合理区间</span><span class="chip">口径区分</span></div>
+      </section>
+      <div class="side stop"><strong>校验失败</strong>停止下结论和调建议；只输出原始读数、缺失项和需要人工核对的位置。</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="row">
+      <div class="side loop"><strong>实时报表</strong>状态卡、聊天摘要、5 分钟盯盘报表；默认精简，详情按需展开。</div>
+      <section class="step">
+        <div class="step-head"><span class="step-num">03</span><h2>直播实时分析</h2><span class="step-sub">LIVE WATCH</span></div>
+        <div class="chips"><span class="chip key">综合营销 ROI</span><span class="chip">目标差距</span><span class="chip">GPM / CPM</span><span class="chip">近5分钟消耗</span><span class="chip">在线人数</span><span class="chip">问题 → 依据 → 归因</span></div>
+      </section>
+      <div class="side stop"><strong>直播结束</strong>立即停止盯盘轮询；生成终场复盘，而不是继续刷新上一场数据。</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="row">
+      <div class="side"><strong>素材动作分档</strong>跑量达标、跑量不达标、高点击低转化、高效低量；每条素材看消耗、ROI、点击率和转化率。</div>
+      <section class="step">
+        <div class="step-head"><span class="step-num">04</span><h2>运营结构分析</h2><span class="step-sub">DELIVERY + MATERIAL + OPS</span></div>
+        <div class="chips"><span class="chip key">基础 vs 追投</span><span class="chip">追投占比</span><span class="chip">素材集中度</span><span class="chip">高消耗低效素材</span><span class="chip">操作上下文</span><span class="chip">10/20 分钟结果</span></div>
+      </section>
+      <div class="side"><strong>场次复盘</strong>本场概况、漏斗、投放结构、问题、方案、下场准备、历史对照全部落盘。</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="row">
+      <div class="side"><strong>确定性护栏</strong>数据计算和只读边界不交给大模型；Reflection 只改写分析文本。</div>
+      <section class="step reflection">
+        <div class="step-head"><span class="step-num">05</span><h2>Reflection 审查修订</h2><span class="step-sub">MAX 1 REVISION</span></div>
+        <div class="reflection-grid">
+          <div class="reflect-box"><b>Draft 初稿</b><span>基于当前上下文生成结论和方案</span></div>
+          <div class="reflect-box"><b>Critic 审查</b><span>数字依据 / 因果 / 口径 / 可执行性 / 只读</span></div>
+          <div class="reflect-box"><b>Revise 修订</b><span>有问题才改；不得补猜缺失数据</span></div>
+          <div class="reflect-box"><b>Final 校验</b><span>格式、非空、失败回退初稿</span></div>
+        </div>
+      </section>
+      <div class="side"><strong>何时触发</strong>分析与建议使用 Reflection；简单问题、错误信息和确定性计算不重复反思。</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="row">
+      <div class="side"><strong>输出原则</strong>数据准确优先于分析；没读到就写“没读到”；每个动作必须有成功标准和止损条件。</div>
+      <section class="step output">
+        <div class="step-head"><span class="step-num">06</span><h2>运营输出</h2><span class="step-sub">OPERATOR VIEW</span></div>
+        <div class="chips"><span class="chip key">实时状态卡</span><span class="chip">聊天报表摘要</span><span class="chip">直播复盘</span><span class="chip">素材分析</span><span class="chip">运营助手对话</span><span class="chip">飞书通知</span></div>
+      </section>
+      <div class="side manual"><strong>人工确认</strong>预算、出价、计划和素材调整只生成建议，必须人工确认后执行。</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="row">
+      <div class="side loop"><strong>反馈回流</strong>操作结果进入下一轮同场景判断；只统计单一操作，扣掉基线漂移。</div>
+      <section class="step asset">
+        <div class="step-head"><span class="step-num">07</span><h2>数据资产与学习</h2><span class="step-sub">OUTCOME FEEDBACK</span></div>
+        <div class="chips"><span class="chip key">操作事件</span><span class="chip">窗口 ROI</span><span class="chip">净效应</span><span class="chip">流速分层</span><span class="chip">n ≥ 20</span><span class="chip">观察性相关，不是因果</span></div>
+      </section>
+      <div class="side"><strong>决策场景</strong>流速偏低 / 正常 / 加快分别积累操作效果，下次遇到同场景优先调用历史结论。</div>
+    </div>
+  </main>
+
+  <footer class="footer-loop">
+    <div class="loop-icon">↺</div>
+    <div><strong>完整闭环：操作 → 10/20 分钟结果 → 扣基线漂移 → 场景分层 → 样本护栏 → 更新建议 → 下一次决策</strong><span>数据越多，系统不是“越来越会说”，而是同一场景下的判断越来越可校准。</span></div>
+  </footer>
+  <div class="caption">千川直播运营 Agent · 只读运营流程图 · 2026-10-21</div>
+</body>
+</html>
