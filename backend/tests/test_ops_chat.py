@@ -241,11 +241,11 @@ def test_orchestrator_sends_images_as_multimodal_parts():
     from app.services.llm.base import LLMResponse
     from app.services.orchestrator import Orchestrator
 
-    captured: dict = {}
+    captured: dict = {"calls": []}
 
     class FakeLLM:
         async def complete(self, messages, tools):
-            captured["messages"] = messages
+            captured["calls"].append(messages)
             return LLMResponse(content="看到了，是红色")
 
     result = asyncio.run(
@@ -254,7 +254,7 @@ def test_orchestrator_sends_images_as_multimodal_parts():
         )
     )
 
-    user = captured["messages"][-1]
+    user = captured["calls"][0][-1]
     assert isinstance(user.content, list)
     assert user.content[0] == {"type": "text", "text": "这是什么颜色"}
     assert user.content[1]["type"] == "image_url"
@@ -268,13 +268,13 @@ def test_orchestrator_image_only_message_gets_default_prompt():
     from app.services.llm.base import LLMResponse
     from app.services.orchestrator import Orchestrator
 
-    captured: dict = {}
+    captured: dict = {"calls": []}
 
     class FakeLLM:
         async def complete(self, messages, tools):
-            captured["messages"] = messages
+            captured["calls"].append(messages)
             return LLMResponse(content="好的")
 
     asyncio.run(Orchestrator(FakeLLM()).handle("", None, images=["data:image/png;base64,AAAA"]))
-    user = captured["messages"][-1]
+    user = captured["calls"][0][-1]
     assert user.content[0]["text"]  # 空消息也要给模型一个默认提示，不能是空串

@@ -157,3 +157,51 @@ def test_chat_api_answers_material_and_operation_log_question_instead_of_strateg
     assert response.status_code == 200
     assert response.json()["message"] == "已分别分析素材状态和操作日志。"
     assert "投放策略卡" not in response.json()["message"]
+@pytest.mark.asyncio
+async def test_orchestrator_reflection_revises_failed_draft(profile):
+    from app.services.llm.base import LLMResponse
+
+    class SequenceProvider:
+        def __init__(self):
+            self.calls = 0
+            self.responses = [
+                '{"kind":"analysis","message":"ROI 2.1，建议直接加量。"}',
+                '{"passed":false,"issues":["缺少目标对比","方案没有执行人和成功标准"],"must_revise":true}',
+                '{"kind":"analysis","message":"综合营销 ROI 2.10，目标 2.60，未达标。由投手先保持预算，20 分钟后复核 ROI 是否回升，未回升则停止加量。"}',
+            ]
+
+        async def complete(self, messages, tools):
+            response = self.responses[self.calls]
+            self.calls += 1
+            return LLMResponse(content=response)
+
+    llm = SequenceProvider()
+    result = await Orchestrator(llm).handle("现在该加量吗", profile)
+
+    assert llm.calls == 3
+    assert "综合营销 ROI 2.10" in result.message
+    assert "20 分钟后" in result.message
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_reflection_keeps_passing_draft(profile):
+    from app.services.llm.base import LLMResponse
+
+    class SequenceProvider:
+        def __init__(self):
+            self.calls = 0
+            self.responses = [
+                '{"kind":"analysis","message":"当前综合营销 ROI 2.10，低于目标 2.60。"}',
+                '{"passed":true,"issues":[],"must_revise":false}',
+            ]
+
+        async def complete(self, messages, tools):
+            response = self.responses[self.calls]
+            self.calls += 1
+            return LLMResponse(content=response)
+
+    llm = SequenceProvider()
+    result = await Orchestrator(llm).handle("ROI 怎么样", profile)
+
+    assert llm.calls == 2
+    assert result.message == "当前综合营销 ROI 2.10，低于目标 2.60。"
