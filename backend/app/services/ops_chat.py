@@ -15,7 +15,7 @@ import json
 import re
 import threading
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -169,14 +169,37 @@ def _knowledge_excerpt(limit: int = 3500) -> str:
     return ""
 
 
+def _beijing_iso(value) -> str | None:
+    """把接口里的 UTC 时间统一转成北京时间，避免模型把 17:20 看成 09:20。"""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(BEIJING).isoformat(timespec="seconds")
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _beijing_date(value) -> str | None:
+    converted = _beijing_iso(value)
+    if not converted:
+        return None
+    try:
+        return datetime.fromisoformat(converted).date().isoformat()
+    except ValueError:
+        return None
+
+
 def _watch_digest(report: dict | None) -> dict | None:
     """先把盯盘报表压成小字段，别把整篇 markdown 塞给模型。"""
     if not report:
         return None
     return {
-        "时间": report.get("created_at"),
+        "时间（北京时间）": _beijing_iso(report.get("created_at")),
         "直播间": report.get("room_name"),
-        "场次开始": report.get("live_started_at"),
+        "场次开始（北京时间）": _beijing_iso(report.get("live_started_at")),
         "数据源": report.get("source"),
         "ROI": report.get("roi"),
         "目标ROI": report.get("roi_target"),
@@ -195,7 +218,7 @@ def _review_digest(review: dict) -> dict:
     return {
         "日期": review.get("date"),
         "直播间": review.get("room"),
-        "结束时间": review.get("ended_at"),
+        "结束时间（北京时间）": _beijing_iso(review.get("ended_at")),
         "报告": str(review.get("report_markdown") or "")[:2500],
     }
 
@@ -333,7 +356,7 @@ def build_daily_briefing(
     review = next((r for r in reviews if r.get("date") == target_text), None)
     analysis = next((a for a in analyses if a.get("date") == target_text), None)
     day_reports = [
-        r for r in watch_reports if str(r.get("created_at") or "").startswith(target_text)
+        r for r in watch_reports if _beijing_date(r.get("created_at")) == target_text
     ]
     problems, problem_hits = _problem_summary(day_reports, review)
 

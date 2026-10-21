@@ -113,7 +113,7 @@ def test_ops_context_carries_strategy_watch_and_knowledge():
     context = build_ops_context(
         profile=_Profile(),
         latest_watch={
-            "created_at": "2026-10-09T11:35:00+08:00",
+            "created_at": "2026-10-09T03:35:00+00:00",
             "room_name": "质润官方旗舰店",
             "roi": 1.77,
             "roi_target": 2.7,
@@ -128,6 +128,7 @@ def test_ops_context_carries_strategy_watch_and_knowledge():
     )
     assert context["投放策略"]["业务方向"] == "ROI目标 2.7"
     assert context["最新盯盘"]["ROI"] == 1.77
+    assert context["最新盯盘"]["时间（北京时间）"] == "2026-10-09T11:35:00+08:00"
     assert context["最新盯盘"]["目标ROI"] == 2.7
     assert context["最近复盘"][0]["日期"] == "2026-10-08"
     # 长报告要截断，别把上下文撑爆
