@@ -22,6 +22,7 @@ import {
   createActionConfirmation,
   executeActionConfirmation,
   getActiveProfile,
+  createStrategyProfile,
   getExecutionJobs,
   getApiConnectionStatus,
   getLiveReviews,
@@ -34,14 +35,55 @@ import {
   tickLiveWatch
 } from "./lib/api";
 
-const fallbackProfile: StrategyBannerProfile = {
+type ActiveStrategyProfile = StrategyBannerProfile & {
+  name?: string;
+  secondary_objectives?: string[];
+  monitoring_config?: Record<string, unknown>;
+  allowed_actions?: string[];
+  notification_policy?: Record<string, unknown>;
+};
+
+type OperationMode = "read_only" | "confirm_automation";
+
+const AUTOMATION_ACTIONS = [
+  "pause_plan",
+  "enable_plan",
+  "update_plan_budget",
+  "create_plan",
+  "copy_plan",
+  "edit_plan",
+  "update_plan_bid",
+  "update_targeting",
+  "update_schedule",
+  "bind_existing_material",
+  "unbind_existing_material"
+];
+
+function normalizeStrategyProfile(value: unknown): ActiveStrategyProfile {
+  const raw = (value ?? {}) as Partial<ActiveStrategyProfile>;
+  return {
+    version: raw.version ?? 0,
+    name: raw.name,
+    business_direction: raw.business_direction ?? "未加载",
+    primary_objective: raw.primary_objective ?? "等待本地服务返回投放策略",
+    secondary_objectives: raw.secondary_objectives ?? [],
+    hard_constraints: raw.hard_constraints ?? {},
+    monitoring_config: raw.monitoring_config ?? { interval_minutes: 5 },
+    allowed_actions: raw.allowed_actions ?? [],
+    notification_policy: raw.notification_policy ?? { dedupe_minutes: 10 },
+    data_time: raw.data_time ?? raw.effective_at ?? raw.created_at ?? new Date().toISOString(),
+    freshness: "fresh"
+  };
+}
+
+const fallbackProfile: ActiveStrategyProfile = normalizeStrategyProfile({
   version: 0,
   business_direction: "未加载",
   primary_objective: "等待本地服务返回投放策略",
   hard_constraints: {},
-  data_time: new Date().toISOString(),
-  freshness: "stale"
-};
+  data_time: new Date().toISOString()
+});
+fallbackProfile.freshness = "stale";
 
 type ExecutionJob = {
   id: string;
@@ -65,7 +107,7 @@ const tools: Array<{ id: ToolWindow; label: string; short: string }> = [
 ];
 
 export default function App() {
-  const [profile, setProfile] = useState<StrategyBannerProfile>(fallbackProfile);
+  const [profile, setProfile] = useState<ActiveStrategyProfile>(fallbackProfile);
   const [selectedPreview, setSelectedPreview] = useState<ActionPreview | null>(null);
   const [jobs, setJobs] = useState<ExecutionJob[]>([]);
   const [reviews, setReviews] = useState<LiveReview[]>([]);
@@ -77,6 +119,8 @@ export default function App() {
   const [opsIncoming, setOpsIncoming] = useState<{ id: string; content: string } | null>(null);
   const [activeWindow, setActiveWindow] = useState<ToolWindow | null>(null);
   const [chatResetKey, setChatResetKey] = useState(0);
+  const [modeBusy, setModeBusy] = useState(false);
+  const [modeNotice, setModeNotice] = useState("");
   const navRef = useRef<HTMLElement | null>(null);
   const topContextRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
@@ -107,17 +151,7 @@ export default function App() {
 
   useEffect(() => {
     getActiveProfile()
-      .then((value) => {
-        const raw = value as Partial<StrategyBannerProfile>;
-        setProfile({
-          version: raw.version ?? 0,
-          business_direction: raw.business_direction ?? "未加载",
-          primary_objective: raw.primary_objective ?? "等待本地服务返回投放策略",
-          hard_constraints: raw.hard_constraints ?? {},
-          data_time: raw.data_time ?? raw.effective_at ?? raw.created_at ?? new Date().toISOString(),
-          freshness: "fresh"
-        });
-      })
+      .then((value) => setProfile(normalizeStrategyProfile(value)))
       .catch(() => setProfile(fallbackProfile));
     getExecutionJobs().then((value) => setJobs(value as ExecutionJob[])).catch(() => undefined);
     getLiveReviews().then(setReviews).catch(() => undefined);
@@ -218,6 +252,44 @@ export default function App() {
     setIncomingMessage({ id: review.id, content: review.report_markdown });
   }, [monitorEvent]);
 
+  const operationMode: OperationMode =
+    profile.hard_constraints.automation_mode === "confirm_required" &&
+    (profile.allowed_actions?.length ?? 0) > 0
+      ? "confirm_automation"
+      : "read_only";
+
+  async function switchOperationMode(targetMode: OperationMode) {
+    if (targetMode === operationMode || modeBusy) return;
+    setModeBusy(true);
+    setModeNotice("");
+    try {
+      const created = await createStrategyProfile({
+        name: profile.name || "质润官方旗舰店 · 直播运营策略",
+        business_direction: profile.business_direction,
+        primary_objective: profile.primary_objective,
+        secondary_objectives: profile.secondary_objectives ?? [],
+        hard_constraints: {
+          ...profile.hard_constraints,
+          read_only: targetMode === "read_only",
+          automation_mode: targetMode === "read_only" ? "read_only" : "confirm_required"
+        },
+        monitoring_config: profile.monitoring_config ?? { interval_minutes: 5 },
+        allowed_actions: targetMode === "read_only" ? [] : AUTOMATION_ACTIONS,
+        notification_policy: profile.notification_policy ?? { dedupe_minutes: 10 }
+      });
+      setProfile(normalizeStrategyProfile(created));
+      setModeNotice(
+        targetMode === "read_only"
+          ? "已切回只读模式"
+          : "已启用自动投放，执行前需确认"
+      );
+      window.setTimeout(() => setModeNotice(""), 3500);
+    } catch {
+      setModeNotice("模式切换失败，请检查策略服务");
+    } finally {
+      setModeBusy(false);
+    }
+  }
   async function handleSend(message: string, images: string[] = []): Promise<ChatReply> {
     const result = await sendChat(message, images);
     return {
@@ -333,12 +405,39 @@ export default function App() {
               );
             })}
           </div>
-          <div className="tool-nav-footer">
-            <span className="tool-nav-status-dot" aria-hidden="true" />
-            <div>
-              <strong>只读运营模式</strong>
-              <span>CDP · 人工确认后执行</span>
+          <div className={`tool-nav-footer mode-${operationMode}`}>
+            <div className="tool-nav-mode-heading">
+              <span className="tool-nav-status-dot" aria-hidden="true" />
+              <div>
+                <strong>{operationMode === "read_only" ? "只读运营模式" : "全自动化投放模式"}</strong>
+                <span>
+                  {operationMode === "read_only"
+                    ? "只分析 · 不执行账户操作"
+                    : "自动生成任务 · 执行前人工确认"}
+                </span>
+              </div>
             </div>
+            <div className="tool-nav-mode-switch" role="group" aria-label="运营模式">
+              <button
+                type="button"
+                className={operationMode === "read_only" ? "active" : ""}
+                aria-pressed={operationMode === "read_only"}
+                disabled={modeBusy}
+                onClick={() => switchOperationMode("read_only")}
+              >
+                只读
+              </button>
+              <button
+                type="button"
+                className={operationMode === "confirm_automation" ? "active" : ""}
+                aria-pressed={operationMode === "confirm_automation"}
+                disabled={modeBusy}
+                onClick={() => switchOperationMode("confirm_automation")}
+              >
+                全自动
+              </button>
+            </div>
+            {modeNotice ? <span className="tool-nav-mode-notice">{modeNotice}</span> : null}
           </div>
         </nav>
         <main className="chat-main" style={mainWindowHeight ? { height: `${mainWindowHeight}px` } : undefined}>
@@ -359,6 +458,7 @@ export default function App() {
             <ChatPanel
               incomingMessage={incomingMessage}
               resetKey={chatResetKey}
+              operationMode={operationMode}
               onSend={handleSend}
               onOpenConfirmation={setSelectedPreview}
             />

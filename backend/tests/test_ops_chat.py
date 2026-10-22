@@ -278,3 +278,21 @@ def test_orchestrator_image_only_message_gets_default_prompt():
     asyncio.run(Orchestrator(FakeLLM()).handle("", None, images=["data:image/png;base64,AAAA"]))
     user = captured["calls"][0][-1]
     assert user.content[0]["text"]  # 空消息也要给模型一个默认提示，不能是空串
+
+def test_ops_context_reports_automation_permissions():
+    class _Profile:
+        business_direction = "稳定放量"
+        primary_objective = "ROI 达标"
+        hard_constraints = {
+            "read_only": False,
+            "automation_mode": "confirm_required"
+        }
+        allowed_actions = ["update_plan_budget", "pause_plan"]
+        version = 4
+
+    context = build_ops_context(profile=_Profile())
+
+    assert "全自动化投放" in context["权限"]
+    assert "人工确认" in context["权限"]
+    assert context["投放策略"]["运营模式"] == "全自动化投放（执行前确认）"
+    assert "update_plan_budget" in context["投放策略"]["允许动作"]

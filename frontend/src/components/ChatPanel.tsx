@@ -97,25 +97,34 @@ type Message = {
   images?: string[];
 };
 
-const INITIAL_MESSAGE: Message = {
-  role: "system",
-  content: "当前处于只读监控阶段。所有投放操作会先展示建议，等待你确认后执行。"
-};
+type OperationMode = "read_only" | "confirm_automation";
+
+function initialMessage(operationMode: OperationMode): Message {
+  return {
+    role: "system",
+    content:
+      operationMode === "confirm_automation"
+        ? "当前处于全自动化投放模式：系统会自动生成投放任务和操作预览，所有执行仍需你确认。"
+        : "当前处于只读监控阶段。所有投放操作会先展示建议，等待你确认后执行。"
+  };
+}
 
 export function ChatPanel({
   onSend,
   onOpenConfirmation,
   incomingMessage,
-  resetKey = 0
+  resetKey = 0,
+  operationMode = "read_only"
 }: {
   onSend?: (message: string, images: string[]) => Promise<ChatReply>;
   onOpenConfirmation?: (preview: ActionPreview) => void;
   incomingMessage?: { id: string; content: string } | null;
   /** 变化时清空聊天记录（每场直播开始时由外层触发） */
   resetKey?: number;
+  operationMode?: OperationMode;
 }) {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>(() => [initialMessage(operationMode)]);
   const [pending, setPending] = useState(false);
   const [attached, setAttached] = useState<PickedImage[]>([]);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -125,8 +134,16 @@ export function ChatPanel({
   useEffect(() => {
     if (!resetKey) return;
     seenIncomingId.current = "";
-    setMessages([INITIAL_MESSAGE]);
+    setMessages([initialMessage(operationMode)]);
   }, [resetKey]);
+
+  useEffect(() => {
+    setMessages((current) =>
+      current.length === 1 && current[0].role === "system"
+        ? [initialMessage(operationMode)]
+        : current
+    );
+  }, [operationMode]);
 
   useEffect(() => {
     if (!incomingMessage || seenIncomingId.current === incomingMessage.id) return;

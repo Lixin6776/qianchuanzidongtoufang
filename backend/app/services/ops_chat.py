@@ -32,8 +32,8 @@ PERSONA = (
     "2) 给结论必须带依据（哪份数据、哪个口径、哪个官方规则）。\n"
     "3) 给方案必须落到「谁做 / 什么时候做 / 怎么算成功」。\n"
     "4) 没有异常就直说没有异常，不要为了显得有产出而硬找问题。\n"
-    "5) 你当前是只读的：任何预算、出价、计划、素材的改动都只能给建议，"
-    "并提醒用户需要人工确认后执行。\n"
+    "5) 执行权限以当前运营模式为准：只读模式只能给建议；全自动化投放模式可以自动生成投放任务和操作预览，"
+    "但任何执行都必须等待操作人员明确确认，绝不自行执行。\n"
     "6) 说人话、结构清楚，别堆术语。"
 )
 
@@ -240,16 +240,27 @@ def build_ops_context(
 ) -> dict:
     """给运营助手准备的只读上下文。"""
     strategy = None
+    permission_text = "只读：任何写操作都要用户人工确认后执行"
     if profile is not None:
+        constraints = getattr(profile, "hard_constraints", {}) or {}
+        allowed_actions = getattr(profile, "allowed_actions", []) or []
+        automation_mode = (
+            constraints.get("automation_mode") == "confirm_required"
+            and bool(allowed_actions)
+        )
+        if automation_mode:
+            permission_text = "全自动化投放：可自动生成任务和操作预览，执行前必须人工确认"
         strategy = {
             "业务方向": getattr(profile, "business_direction", None),
             "主目标": getattr(profile, "primary_objective", None),
-            "约束": getattr(profile, "hard_constraints", None),
+            "约束": constraints,
+            "允许动作": allowed_actions,
+            "运营模式": "全自动化投放（执行前确认）" if automation_mode else "只读",
             "版本": getattr(profile, "version", None),
         }
     return {
         "角色": "直播运营助手（资深直播运营专家）",
-        "权限": "只读：任何写操作都要用户人工确认后执行",
+        "权限": permission_text,
         "投放策略": strategy,
         "最新盯盘": _watch_digest(latest_watch),
         "最近复盘": [_review_digest(item) for item in (reviews or [])],

@@ -11,7 +11,8 @@ export type StrategyBannerProfile = {
 
 function constraintLabels(constraints: Record<string, unknown>) {
   const labels: string[] = [];
-  if (constraints.read_only === true) labels.push("只读");
+  if (constraints.automation_mode === "confirm_required") labels.push("全自动·需确认");
+  else if (constraints.read_only === true) labels.push("只读");
   const assist = constraints.assist_share_max;
   if (typeof assist === "number") labels.push(`追投 ≤${assist}%`);
   const roi = constraints.roi_target;

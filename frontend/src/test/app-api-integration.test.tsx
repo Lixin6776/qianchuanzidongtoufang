@@ -3,6 +3,7 @@ import { vi } from "vitest";
 
 import App from "../App";
 import { ChatPanel } from "../components/ChatPanel";
+import { createStrategyProfile } from "../lib/api";
 
 vi.mock("../lib/api", () => ({
   // App 里挂的「新手上路」引导会调这几个接口，mock 里必须有
@@ -126,6 +127,40 @@ test("app loads the active profile from the local API", async () => {
   expect(await screen.findByText(/盯盘策略 v9/)).toBeInTheDocument();
 });
 
+test("operator can switch to approval-based automation mode", async () => {
+  const createProfile = vi.mocked(createStrategyProfile);
+  createProfile.mockClear();
+  createProfile.mockResolvedValueOnce({
+    id: "p-mode",
+    version: 10,
+    active: true,
+    name: "质润官方旗舰店 · 直播运营策略",
+    business_direction: "稳定放量",
+    primary_objective: "在 ROI 达标前提下提升成交额",
+    secondary_objectives: [],
+    hard_constraints: {
+      read_only: false,
+      automation_mode: "confirm_required"
+    },
+    monitoring_config: { interval_minutes: 5 },
+    allowed_actions: ["update_plan_budget", "pause_plan"],
+    notification_policy: { dedupe_minutes: 10 }
+  });
+
+  render(<App />);
+  expect(await screen.findByText(/盯盘策略 v9/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "全自动" }));
+
+  expect(await screen.findByText("全自动化投放模式")).toBeInTheDocument();
+  expect(screen.getByText(/自动生成任务 · 执行前人工确认/)).toBeInTheDocument();
+  expect(createProfile).toHaveBeenCalledTimes(1);
+  const payload = createProfile.mock.calls[0][0];
+  expect(payload.hard_constraints).toMatchObject({
+    read_only: false,
+    automation_mode: "confirm_required"
+  });
+  expect(payload.allowed_actions).toContain("update_plan_budget");
+});
 test("chat panel renders the assistant response", async () => {
   const onSend = vi.fn().mockResolvedValue({ message: "当前 ROI 为 2.5。" });
   render(<ChatPanel onSend={onSend} />);
@@ -194,4 +229,12 @@ test("left navigation opens feishu in the main workspace", async () => {
   expect(await screen.findByRole("region", { name: "飞书" })).toBeInTheDocument();
   expect(screen.queryByRole("dialog", { name: "飞书" })).not.toBeInTheDocument();
   expect(await screen.findByText("尚未连接飞书")).toBeInTheDocument();
+});
+
+
+test("chat panel reflects approval-based automation mode", () => {
+  render(<ChatPanel operationMode="confirm_automation" />);
+  expect(
+    screen.getByText(/全自动化投放模式：系统会自动生成投放任务和操作预览/)
+  ).toBeInTheDocument();
 });
