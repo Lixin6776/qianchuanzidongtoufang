@@ -128,12 +128,15 @@ export function ChatPanel({
   const [pending, setPending] = useState(false);
   const [attached, setAttached] = useState<PickedImage[]>([]);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const streamRef = useRef<HTMLDivElement | null>(null);
+  const initialScrollSkipped = useRef(false);
   const seenIncomingId = useRef("");
 
   // 新场次开播 -> 清空上一场聊天记录
   useEffect(() => {
     if (!resetKey) return;
     seenIncomingId.current = "";
+    initialScrollSkipped.current = false;
     setMessages([initialMessage(operationMode)]);
   }, [resetKey]);
 
@@ -145,6 +148,19 @@ export function ChatPanel({
     );
   }, [operationMode]);
 
+  useEffect(() => {
+    if (!initialScrollSkipped.current) {
+      initialScrollSkipped.current = true;
+      return;
+    }
+    const stream = streamRef.current;
+    if (!stream) return;
+    if (typeof stream.scrollTo === "function") {
+      stream.scrollTo({ top: stream.scrollHeight, behavior: "smooth" });
+    } else {
+      stream.scrollTop = stream.scrollHeight;
+    }
+  }, [messages]);
   useEffect(() => {
     if (!incomingMessage || seenIncomingId.current === incomingMessage.id) return;
     seenIncomingId.current = incomingMessage.id;
@@ -193,7 +209,7 @@ export function ChatPanel({
         <p className="eyebrow">Live Ops · 直播运营助手</p>
         <h1>直播盯盘</h1>
       </div>
-      <div className="chat-stream" aria-live="polite">
+      <div className="chat-stream" aria-live="polite" ref={streamRef}>
         {messages.map((message, index) => (
           <article className={`message message-${message.role}`} key={`${message.role}-${index}`}>
             {message.role !== "system" ? (
