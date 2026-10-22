@@ -2047,3 +2047,74 @@ body {
   font-size: 11px;
 }
 .live-status-diagnostics .live-status-insights { margin-top: 8px; }
+
+/* Web-first workspace sizing: fill remaining viewport and align with the status card */
+.byte-workspace {
+  width: calc(100% - 64px);
+  max-width: none;
+  margin: 0 auto;
+  padding: 16px 0 24px;
+  grid-template-columns: clamp(220px, 14vw, 280px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+.tool-nav.panel {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  height: auto;
+  gap: 10px;
+}
+.tool-nav-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 6px;
+}
+.tool-nav-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px 6px;
+  border-top: 1px solid rgba(116, 146, 190, 0.16);
+  color: #7790b4;
+}
+.tool-nav-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.65);
+}
+.tool-nav-footer div { min-width: 0; display: grid; gap: 1px; }
+.tool-nav-footer strong { color: #c9d9ef; font-size: 12px; font-weight: 600; }
+.tool-nav-footer span:not(.tool-nav-status-dot) {
+  overflow: hidden;
+  color: #6f87a9;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-main { width: 100%; }
+
+@media (max-width: 980px) {
+  .byte-workspace {
+    width: calc(100% - 32px);
+    margin: 0 16px;
+    padding: 12px 0 24px;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .tool-nav.panel { align-self: start; height: auto; }
+  .tool-nav-list {
+    flex: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .tool-nav-footer { margin-top: 2px; }
+  .chat-main { height: auto !important; }
+}

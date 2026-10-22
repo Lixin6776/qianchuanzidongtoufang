@@ -78,18 +78,26 @@ export default function App() {
   const [activeWindow, setActiveWindow] = useState<ToolWindow | null>(null);
   const [chatResetKey, setChatResetKey] = useState(0);
   const navRef = useRef<HTMLElement | null>(null);
+  const topContextRef = useRef<HTMLDivElement | null>(null);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [mainWindowHeight, setMainWindowHeight] = useState<number | null>(null);
 
   useEffect(() => {
-    const nav = navRef.current;
-    if (!nav) return;
+    const topContext = topContextRef.current;
+    const workspace = workspaceRef.current;
+    if (!topContext || !workspace) return;
     const updateHeight = () => {
-      const height = nav.getBoundingClientRect().height;
-      setMainWindowHeight(window.innerWidth > 980 && height > 0 ? Math.ceil(height) : null);
+      if (window.innerWidth <= 980) {
+        setMainWindowHeight(null);
+        return;
+      }
+      const documentTop = workspace.getBoundingClientRect().top + window.scrollY;
+      const available = window.innerHeight - documentTop - 40;
+      setMainWindowHeight(Math.max(480, Math.ceil(available)));
     };
     updateHeight();
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateHeight) : null;
-    observer?.observe(nav);
+    observer?.observe(topContext);
     window.addEventListener("resize", updateHeight);
     return () => {
       observer?.disconnect();
@@ -291,36 +299,47 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <StrategyBanner profile={profile} />
-      <LiveStatusCard />
-      <OnboardingGuide
-        onOpenWindow={(windowId) => {
-          if (!windowId) return;
-          setActiveWindow(windowId === "live_watch" ? null : windowId as ToolWindow);
-        }}
-        onTick={() => {
-          // 引导里的"立即读取"：直接触发一轮盯盘
-          tickLiveWatch().catch(() => undefined);
-        }}
-      />
-      <div className="workspace byte-workspace">
+      <div className="top-context" ref={topContextRef}>
+        <StrategyBanner profile={profile} />
+        <LiveStatusCard />
+        <OnboardingGuide
+          onOpenWindow={(windowId) => {
+            if (!windowId) return;
+            setActiveWindow(windowId === "live_watch" ? null : windowId as ToolWindow);
+          }}
+          onTick={() => {
+            // 引导里的"立即读取"：直接触发一轮盯盘
+            tickLiveWatch().catch(() => undefined);
+          }}
+        />
+      </div>
+      <div className="workspace byte-workspace" ref={workspaceRef}>
         <nav className="tool-nav panel" aria-label="功能导航" ref={navRef}>
-          {tools.map((item) => {
-            const isActive = activeWindow === item.id || (item.id === "live_watch" && activeWindow === null);
-            return (
-              <button
-                className={isActive ? "tool-nav-item active" : "tool-nav-item"}
-                key={item.id}
-                type="button"
-                onClick={() => setActiveWindow(item.id === "live_watch" ? null : item.id)}
-              >
-                <span className="tool-nav-main">
-                  <span className="tool-nav-short" aria-hidden="true">{item.short}</span>
-                  <span>{item.label}</span>
-                </span>
-              </button>
-            );
-          })}
+          <div className="tool-nav-list">
+            {tools.map((item) => {
+              const isActive = activeWindow === item.id || (item.id === "live_watch" && activeWindow === null);
+              return (
+                <button
+                  className={isActive ? "tool-nav-item active" : "tool-nav-item"}
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveWindow(item.id === "live_watch" ? null : item.id)}
+                >
+                  <span className="tool-nav-main">
+                    <span className="tool-nav-short" aria-hidden="true">{item.short}</span>
+                    <span>{item.label}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="tool-nav-footer">
+            <span className="tool-nav-status-dot" aria-hidden="true" />
+            <div>
+              <strong>只读运营模式</strong>
+              <span>CDP · 人工确认后执行</span>
+            </div>
+          </div>
         </nav>
         <main className="chat-main" style={mainWindowHeight ? { height: `${mainWindowHeight}px` } : undefined}>
           {activeWindow ? (
