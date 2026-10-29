@@ -403,6 +403,7 @@ export type LiveWatchReport = {
   live_started_at?: string | null;
   live_room_id?: string | null;
   session_status?: string | null;
+  note?: string | null;
   verify_passed?: boolean | null;
   problems: string[];
   adjustments: string[];

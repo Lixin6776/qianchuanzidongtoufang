@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from app.execution.cdp.fixture_adapter import MetricSnapshot
 from app.services.analytics import ComputedMetrics
-from app.services.live_watch import LiveWatchService
+from app.services.live_watch import LiveWatchService, build_watch_report
 from app.services.monitor import MonitorEvent
 from app.services.watch_log_store import SqliteWatchLogStore
 
@@ -220,3 +220,19 @@ def test_optional_side_data_times_out_without_losing_report(tmp_path):
     assert report["source"] == "cdp"
     assert report["spend"] == 10000.0
     assert elapsed < 0.5, f"辅助数据超时仍拖慢主记录：{elapsed:.2f}s"
+
+
+def test_invalid_watch_report_keeps_session_status():
+    """数据未通过校验时也必须保留结束状态，前端才能停止展示为实时。"""
+    event = _event(started=NEW).model_copy(update={"plan_status": "ended"})
+    report = build_watch_report(
+        event,
+        [],
+        2.8,
+        [],
+        stagnant=True,
+        stagnant_note="本场已结束：消耗连续多个周期没有变化",
+    )
+
+    assert report["verify_passed"] is False
+    assert report["session_status"] == "ended"

@@ -1094,12 +1094,13 @@ def build_watch_report(
             "id": str(uuid.uuid4()),
             "created_at": now.isoformat(),
             "captured_at": event.captured_at.isoformat(),
-        "live_started_at": (
-            getattr(event, "live_started_at", None).isoformat()
-            if getattr(event, "live_started_at", None)
-            else None
-        ),
-        "live_room_id": getattr(event.metrics, "live_room_id", None),
+            "live_started_at": (
+                getattr(event, "live_started_at", None).isoformat()
+                if getattr(event, "live_started_at", None)
+                else None
+            ),
+            "live_room_id": getattr(event.metrics, "live_room_id", None),
+            "session_status": event.plan_status,
             "level": event.level,
             "source": event.source,
             "roi": metrics.roi,

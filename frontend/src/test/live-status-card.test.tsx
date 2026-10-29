@@ -60,7 +60,7 @@ test("ended live shows the final snapshot and stops polling", async () => {
   });
   expect(load).toHaveBeenCalledTimes(1);
   expect(screen.getByText("直播已结束")).toBeInTheDocument();
-  expect(screen.getByText(/自动盯盘和数据轮询已停止/)).toBeInTheDocument();
+  expect(screen.getAllByText(/自动盯盘和数据轮询已停止/).length).toBeGreaterThan(0);
 
   await act(async () => {
     vi.advanceTimersByTime(4000);
@@ -68,4 +68,68 @@ test("ended live shows the final snapshot and stops polling", async () => {
   });
   expect(load).toHaveBeenCalledTimes(1);
   vi.useRealTimers();
+});
+
+
+test("stopped watch is shown as a final snapshot instead of live zero spend", async () => {
+  const stopped = {
+    ...report,
+    captured_at: "2026-10-29T15:45:53+08:00",
+    spend_delta: 0,
+    session_status: "active",
+    note: "指标正常"
+  };
+  const status = {
+    running: false,
+    desired_running: false,
+    interval_seconds: 300,
+    tick_count: 1,
+    last_run: "2026-10-29T15:46:18+08:00",
+    reports: 1,
+    last_error: "",
+    latest: stopped
+  };
+  const load = vi.fn().mockResolvedValue({ report: stopped, status });
+
+  render(<LiveStatusCard load={load} refreshMs={0} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(screen.getByText("盯盘已停止")).toBeInTheDocument();
+  expect(screen.getAllByText(/当前展示最后快照/).length).toBeGreaterThan(0);
+  expect(screen.getByText("盯盘未运行，不计算实时增量")).toBeInTheDocument();
+  expect(screen.queryByText("¥0")).not.toBeInTheDocument();
+});
+
+test("ended note is recognized even when structured status is missing", async () => {
+  const endedNote = {
+    ...report,
+    created_at: "2026-10-29T15:46:18+08:00",
+    captured_at: "2026-10-29T15:45:53+08:00",
+    spend_delta: 0,
+    session_status: null,
+    note: "本场已结束：消耗停留在 ¥47,190.30"
+  };
+  const status = {
+    running: false,
+    desired_running: false,
+    interval_seconds: 300,
+    tick_count: 1,
+    last_run: "2026-10-29T15:46:18+08:00",
+    reports: 1,
+    last_error: "",
+    latest: endedNote
+  };
+  const load = vi.fn().mockResolvedValue({ report: endedNote, status });
+
+  render(<LiveStatusCard load={load} refreshMs={0} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(screen.getByText("直播已结束")).toBeInTheDocument();
+  expect(screen.getAllByText(/不再代表实时数据/).length).toBeGreaterThan(0);
+  expect(screen.getByText("已结束，不再计算实时增量")).toBeInTheDocument();
+  expect(screen.queryByText("¥0")).not.toBeInTheDocument();
 });

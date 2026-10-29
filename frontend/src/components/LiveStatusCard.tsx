@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import type { LiveWatchReport } from "../lib/api";
-import { getLiveWatchLogs } from "../lib/api";
+import type { LiveWatchReport, LiveWatchStatus } from "../lib/api";
+import { getLiveWatchLogs, getLiveWatchStatus } from "../lib/api";
 
 type Tone = "success" | "warning" | "danger" | "muted";
 
@@ -18,9 +18,26 @@ const numberFormat = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2
 });
 
-async function loadLatestReport(): Promise<LiveWatchReport | null> {
+type LiveStatusSnapshot = {
+  report: LiveWatchReport | null;
+  status: LiveWatchStatus | null;
+};
+
+type LiveStatusLoadResult = LiveWatchReport | LiveStatusSnapshot | null;
+
+function isSnapshot(value: LiveStatusLoadResult): value is LiveStatusSnapshot {
+  return Boolean(value && typeof value === "object" && "report" in value);
+}
+
+async function loadLatestSnapshot(): Promise<LiveStatusSnapshot> {
   const logs = await getLiveWatchLogs(1);
-  return logs[0] ?? null;
+  let status: LiveWatchStatus | null = null;
+  try {
+    status = await getLiveWatchStatus();
+  } catch {
+    status = null;
+  }
+  return { report: logs[0] ?? null, status };
 }
 
 function formatRatio(value: number | null | undefined) {
@@ -84,21 +101,23 @@ function toneLabel(tone: Tone) {
 
 export function LiveStatusCard({
   report: providedReport,
-  load = loadLatestReport,
+  load = loadLatestSnapshot,
   refreshMs = 30_000
 }: {
-  /** 测试或上层注入时使用；不传则由组件每 30 秒读取最新盯盘记录。 */
+  /** 测试或上层注入时使用；不传则由组件每 30 秒读取最新盯盘记录和运行状态。 */
   report?: LiveWatchReport | null;
-  load?: () => Promise<LiveWatchReport | null>;
+  load?: () => Promise<LiveStatusLoadResult>;
   refreshMs?: number;
 }) {
   const [report, setReport] = useState<LiveWatchReport | null>(providedReport ?? null);
+  const [status, setStatus] = useState<LiveWatchStatus | null>(null);
   const [loading, setLoading] = useState(providedReport === undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (providedReport !== undefined) {
       setReport(providedReport ?? null);
+      setStatus(null);
       setLoading(false);
       setError(null);
       return;
@@ -110,9 +129,12 @@ export function LiveStatusCard({
     const refresh = async () => {
       if (stopped) return;
       try {
-        const next = await load();
+        const loaded = await load();
         if (!active) return;
+        const snapshot = isSnapshot(loaded) ? loaded : { report: loaded, status: null };
+        const next = snapshot.report;
         setReport(next);
+        setStatus(snapshot.status);
         setError(null);
         if (next?.session_status === "ended" || next?.session_status === "stopped") {
           stopped = true;
@@ -136,20 +158,50 @@ export function LiveStatusCard({
     };
   }, [providedReport, load, refreshMs]);
 
-  const roiProgress = report?.roi != null && report.roi_target
-    ? Math.max(0, Math.min(100, (report.roi / report.roi_target) * 100))
-    : undefined;
+  const problem = plainText(report?.problems?.find((item) => item.trim()));
+  const adjustment = plainText(report?.adjustments?.find((item) => item.trim()));
+  const roomName = report?.room_name || "直播间待读取";
+  const observedAt = report?.captured_at || report?.created_at;
+  const statusNote = status?.latest?.note ?? "";
+  const isEnded =
+    report?.session_status === "ended" ||
+    report?.session_status === "stopped" ||
+    /本场已结束|直播已结束/.test(`${report?.note ?? ""} ${statusNote}`);
+  const watchStopped = status !== null && !status.running;
+  const staleAfterMinutes = Math.max(
+    10,
+    Math.ceil(((status?.interval_seconds ?? 300) * 2) / 60)
+  );
+  const observedTime = observedAt ? new Date(observedAt).getTime() : Number.NaN;
+  const staleMinutes = Number.isNaN(observedTime)
+    ? null
+    : Math.max(0, Math.floor((Date.now() - observedTime) / 60_000));
+  const isStale =
+    status !== null &&
+    !isEnded &&
+    staleMinutes !== null &&
+    staleMinutes > staleAfterMinutes;
+  const snapshotOnly = isEnded || watchStopped || isStale;
+  const metricTone = (tone: Tone): Tone => (snapshotOnly ? "muted" : tone);
+  const deltaAvailable =
+    !snapshotOnly && report?.spend_delta !== null && report?.spend_delta !== undefined;
+  const roiProgress =
+    !snapshotOnly && report?.roi != null && report.roi_target
+      ? Math.max(0, Math.min(100, (report.roi / report.roi_target) * 100))
+      : undefined;
 
   const metrics: StatusMetric[] = [
     {
       label: "综合营销 ROI",
       value: formatRatio(report?.roi),
       detail: report?.roi_target == null ? "综合营销ROI目标未配置" : `综合营销ROI目标 ${formatRatio(report.roi_target)}`,
-      tone: report?.roi == null || report.roi_target == null
-        ? "muted"
-        : report.roi < report.roi_target
-          ? "danger"
-          : "success",
+      tone: metricTone(
+        report?.roi == null || report.roi_target == null
+          ? "muted"
+          : report.roi < report.roi_target
+            ? "danger"
+            : "success"
+      ),
       primary: true,
       progress: roiProgress
     },
@@ -157,44 +209,88 @@ export function LiveStatusCard({
       label: "GPM",
       value: formatMoney(report?.gpm),
       detail: "千次观看成交",
-      tone: issueTone(report, /GPM/i),
+      tone: metricTone(issueTone(report, /GPM/i)),
       primary: true
     },
     {
       label: "近5分钟消耗金额",
-      value: report?.spend_delta === null || report?.spend_delta === undefined
-        ? "--"
-        : formatMoney(report.spend_delta),
-      detail: report?.spend_delta === null || report?.spend_delta === undefined
-        ? "暂无增量数据"
-        : "最近一个采样周期",
-      tone: report?.spend_delta === null || report?.spend_delta === undefined
-        ? "muted"
-        : report.spend_delta <= 0
+      value: deltaAvailable ? formatMoney(report?.spend_delta) : "--",
+      detail: isEnded
+        ? "已结束，不再计算实时增量"
+        : watchStopped
+          ? "盯盘未运行，不计算实时增量"
+          : isStale
+            ? `数据已 ${staleMinutes} 分钟未更新`
+            : deltaAvailable
+              ? "最近一个采样周期"
+              : "暂无增量数据",
+      tone: deltaAvailable
+        ? (report?.spend_delta ?? 0) <= 0
           ? "danger"
           : "success"
+        : "muted"
     },
     {
-      label: "实时在线",
+      label: snapshotOnly ? "最后在线" : "实时在线",
       value: report ? numberFormat.format(report.online_viewers) : "--",
-      detail: "当前快照",
-      tone: issueTone(report, /在线|人数/)
+      detail: snapshotOnly ? "最后一次成功采集" : "当前快照",
+      tone: metricTone(issueTone(report, /在线|人数/))
     },
     {
       label: "CPM",
       value: formatMoney(report?.cpm),
-      detail: "千次曝光成本",
-      tone: issueTone(report, /CPM/i)
+      detail: snapshotOnly ? "最后快照口径" : "千次曝光成本",
+      tone: metricTone(issueTone(report, /CPM/i))
     }
   ];
 
-  const problem = plainText(report?.problems?.find((item) => item.trim()));
-  const adjustment = plainText(report?.adjustments?.find((item) => item.trim()));
-  const roomName = report?.room_name || "直播间待读取";
-  const observedAt = report?.captured_at || report?.created_at;
-  const isEnded = report?.session_status === "ended" || report?.session_status === "stopped";
-  const tone = error ? "danger" : isEnded ? "muted" : overallTone(report);
-  const badgeLabel = isEnded ? "直播已结束" : toneLabel(tone);
+  const tone: Tone = error
+    ? "danger"
+    : isEnded || watchStopped
+      ? "muted"
+      : isStale
+        ? "danger"
+        : overallTone(report);
+  const badgeLabel = isEnded
+    ? "直播已结束"
+    : watchStopped
+      ? "盯盘已停止"
+      : isStale
+        ? "数据已过期"
+        : toneLabel(tone);
+  const snapshotNote = isEnded
+    ? "直播已结束，自动盯盘和数据轮询已停止，当前展示最终快照，不再代表实时数据。"
+    : watchStopped
+      ? "盯盘当前未运行，当前展示最后快照，数据可能已过期。"
+      : isStale
+        ? `盯盘仍在运行，但数据已 ${staleMinutes} 分钟未更新；当前读数只代表最后一次成功采集。`
+        : "";
+  const diagnosticProblem = snapshotOnly
+    ? snapshotNote || plainText(status?.last_error) || "当前不是实时数据"
+    : error || problem || "本轮未返回异常项";
+  const diagnosticAdvice = isEnded
+    ? "下一场开播后，在「直播盯盘」里手动开始。"
+    : watchStopped
+      ? "需要继续盯盘时，在「直播盯盘」里开始或恢复。"
+      : isStale
+        ? "先检查数据源连接或点击「立即读取一次」；恢复前不要根据这组数据做投放动作。"
+        : adjustment || "暂无调整建议，继续观察下一周期";
+  const summaryTitle = isEnded
+    ? "直播已结束，停止实时判断"
+    : watchStopped
+      ? "盯盘已停止，不再判断实时状态"
+      : isStale
+        ? "数据已过期，暂停实时判断"
+        : problem || error
+          ? `发现 ${report?.problems?.filter((item) => item.trim()).length ?? 1} 项问题`
+          : "本周期未发现异常";
+  const observedLabel = isEnded
+    ? "最后更新"
+    : watchStopped
+      ? "最后数据"
+      : isStale
+        ? "数据已过期"
+        : "更新于";
 
   return (
     <section className={`live-status-card live-status-${tone}`} aria-label="实时盯盘状态">
@@ -202,7 +298,7 @@ export function LiveStatusCard({
         <div className="live-status-heading">
           <div className="live-status-titleline">
             <h2>
-              <i className={`live-status-pulse${isEnded ? " is-ended" : ""}`} aria-hidden="true" />
+              <i className={`live-status-pulse${snapshotOnly ? " is-ended" : ""}`} aria-hidden="true" />
               实时盯盘状态
             </h2>
             <span>{roomName}</span>
@@ -215,10 +311,8 @@ export function LiveStatusCard({
         </div>
       </header>
 
-      {isEnded ? (
-        <div className="live-status-ended-note">
-          直播已结束，自动盯盘和数据轮询已停止，当前展示最终快照。
-        </div>
+      {snapshotOnly ? (
+        <div className="live-status-ended-note">{snapshotNote}</div>
       ) : null}
 
       <div className="live-status-grid">
@@ -251,21 +345,19 @@ export function LiveStatusCard({
       <details className="live-status-diagnostics">
         <summary>
           <span className={`live-status-summary-dot live-status-summary-dot-${tone}`} aria-hidden="true" />
-          <strong>
-            {problem || error
-              ? `发现 ${report?.problems?.filter((item) => item.trim()).length ?? 1} 项问题`
-              : "本周期未发现异常"}
-          </strong>
-          <span className="live-status-summary-hint">查看归因与建议</span>
+          <strong>{summaryTitle}</strong>
+          <span className="live-status-summary-hint">
+            {snapshotOnly ? "查看状态说明" : "查看归因与建议"}
+          </span>
         </summary>
         <div className="live-status-insights">
           <div>
             <span>当前发现</span>
-            <p>{error || problem || "本轮未返回异常项"}</p>
+            <p>{diagnosticProblem}</p>
           </div>
           <div>
             <span>建议动作</span>
-            <p>{adjustment || "暂无调整建议，继续观察下一周期"}</p>
+            <p>{diagnosticAdvice}</p>
           </div>
         </div>
       </details>
