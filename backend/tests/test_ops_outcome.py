@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """操作净效应：分类 + 结构 + 护栏（样本不足不给结论）。"""
 
 from datetime import datetime, timedelta, timezone
@@ -127,3 +126,21 @@ def test_op_meta_extracts_budget_roi_material():
     assert meta["material_id"] == "1876023120663875"
     assert meta["scenario"] == "控成本追投"
     assert meta["optimization_goal"] == "综合营销ROI"
+
+
+def test_compute_ops_outcome_scales_with_live_history():
+    """规模化回归：不能对每个报告再次全表扫描，否则数据资产会卡到分钟级。"""
+    import time
+
+    logs = [_report(i, spend=1000 + i * 30, gmv=2000 + i * 75) for i in range(1000)]
+    for i in range(50, len(logs), 50):
+        logs[i]["platform_operations"] = [
+            _op(i, "操作内容：素材追投，ID：1；调控预算：3000.00元 -> 4000.00元")
+        ]
+
+    started = time.perf_counter()
+    result = compute_ops_outcome(logs)
+    elapsed = time.perf_counter() - started
+
+    assert result["operation_events"] > 0
+    assert elapsed < 2.5, f"1000 条真实规模日志耗时 {elapsed:.2f}s，疑似退回全表扫描"

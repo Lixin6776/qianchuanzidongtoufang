@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 """盯盘自检：换场要先复读确认；跨源偏差要显式写进自检区。"""
 
 import asyncio
+import time
+from datetime import UTC, datetime
 
 from app.execution.cdp.fixture_adapter import MetricSnapshot
 from app.services.analytics import ComputedMetrics
 from app.services.live_watch import LiveWatchService
 from app.services.monitor import MonitorEvent
 from app.services.watch_log_store import SqliteWatchLogStore
-
-from datetime import UTC, datetime
 
 
 class _Hub:
@@ -185,3 +184,39 @@ def test_tick_timeout_is_configured(tmp_path):
     )
     # 一轮读取必须有整体超时，否则某个 await 卡住会把循环拖死
     assert 30 <= service.tick_timeout_seconds <= 180
+
+
+def test_optional_side_data_times_out_without_losing_report(tmp_path):
+    """素材/日志/计划拆分是辅助数据，任何一项卡住都不能拖垮主盯盘记录。"""
+    hub = _Hub()
+
+    async def slow_split(session_start=None):
+        await asyncio.sleep(1.0)
+        return {"total_spend": 1.0}
+
+    async def slow_logs():
+        await asyncio.sleep(1.0)
+        return []
+
+    async def slow_plan_split():
+        await asyncio.sleep(1.0)
+        return []
+
+    service = LiveWatchService(
+        _Monitor(_event(started=NEW)),
+        hub,
+        store=SqliteWatchLogStore(tmp_path / "w.sqlite3", tmp_path / "none.json"),
+        spend_split_provider=slow_split,
+        platform_log_provider=slow_logs,
+        plan_split_provider=slow_plan_split,
+        side_data_timeout_seconds=0.05,
+        state_path=tmp_path / "state.json",
+        interval_seconds=300,
+    )
+    started = time.perf_counter()
+    report = asyncio.run(service.tick_once())
+    elapsed = time.perf_counter() - started
+
+    assert report["source"] == "cdp"
+    assert report["spend"] == 10000.0
+    assert elapsed < 0.5, f"辅助数据超时仍拖慢主记录：{elapsed:.2f}s"

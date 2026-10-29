@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """操作净效应：你手动做的操作，有没有被数据正向反馈。
 
 这套口径是先用真实数据做过自检的，不是拍脑袋：
@@ -16,9 +15,10 @@
 import json
 import re
 import statistics
-from pathlib import Path
+from bisect import bisect_left, bisect_right
+from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import Iterable
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 BEIJING = ZoneInfo("Asia/Shanghai")
@@ -194,6 +194,38 @@ def _marginal_roi(before: dict, after: dict) -> float | None:
     return gmv_delta / spend_delta
 
 
+def _nearest_report(
+    reports: list[dict],
+    report_times: list[datetime],
+    moment: datetime,
+    minutes: int,
+) -> dict | None:
+    """用有序时间索引找目标时刻最近的一条报告，保持原来的容差口径。"""
+    target = moment + timedelta(minutes=minutes)
+    position = bisect_left(report_times, target)
+    best = None
+    best_gap = 10**9
+    for index in (position - 1, position):
+        if not 0 <= index < len(reports):
+            continue
+        gap = abs((report_times[index] - target).total_seconds())
+        if gap < best_gap:
+            best = reports[index]
+            best_gap = gap
+    return best if best_gap <= NEIGHBOR_TOLERANCE_SECONDS else None
+
+
+def _operation_names_near(
+    op_events: list[tuple[datetime, str, dict]],
+    op_times: list[datetime],
+    moment: datetime,
+) -> set[str]:
+    """只扫描操作时间窗内的记录，避免每个报告都遍历全部操作。"""
+    start = bisect_left(op_times, moment - timedelta(seconds=OP_WINDOW_SECONDS))
+    end = bisect_right(op_times, moment + timedelta(seconds=OP_WINDOW_SECONDS))
+    return {name for _at, name, _meta in op_events[start:end]}
+
+
 def compute_ops_outcome(logs: Iterable[dict]) -> dict:
     """算出《操作反馈表》需要的全部数据。"""
     reports = []
@@ -217,25 +249,14 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
             seen.add(key)
             op_events.append((at, name, meta))
 
-    def near(moment: datetime, minutes: int) -> dict | None:
-        target = moment + timedelta(minutes=minutes)
-        best, best_gap = None, 10**9
-        for report in reports:
-            gap = abs((report["_at"] - target).total_seconds())
-            if gap < best_gap:
-                best, best_gap = report, gap
-        return best if best_gap <= NEIGHBOR_TOLERANCE_SECONDS else None
-
-    def has_op_near(moment: datetime) -> bool:
-        return any(
-            abs((moment - op_at).total_seconds()) <= OP_WINDOW_SECONDS
-            for op_at, _name, _meta in op_events
-        )
+    op_events.sort(key=lambda item: item[0])
+    op_times = [at for at, _name, _meta in op_events]
+    report_times = [report["_at"] for report in reports]
 
     rows = []
     for report in reports:
-        pre = near(report["_at"], -FORWARD_MINUTES)
-        post = near(report["_at"], FORWARD_MINUTES)
+        pre = _nearest_report(reports, report_times, report["_at"], -FORWARD_MINUTES)
+        post = _nearest_report(reports, report_times, report["_at"], FORWARD_MINUTES)
         if pre is None or post is None:
             continue
         pre_roi = _marginal_roi(pre, report)
@@ -248,7 +269,7 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
                 "at": report["_at"],
                 "delta": post_roi - pre_roi,
                 "velocity": velocity,
-                "has_op": has_op_near(report["_at"]),
+                "has_op": bool(_operation_names_near(op_events, op_times, report["_at"])),
             }
         )
 
@@ -273,11 +294,7 @@ def compute_ops_outcome(logs: Iterable[dict]) -> dict:
     for row in rows:
         if not row["has_op"]:
             continue
-        names = {
-            name
-            for at, name, _meta in op_events
-            if abs((row["at"] - at).total_seconds()) <= OP_WINDOW_SECONDS
-        }
+        names = _operation_names_near(op_events, op_times, row["at"])
         # 只统计"此刻只有一种操作"的样本：操作扎堆时无法区分是哪一个起的作用，
         # 硬算会让所有操作类型都继承同一个效应（实测会全部变成 positive）。
         if len(names) != 1:
@@ -499,6 +516,7 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
             continue
         reports.append({**report, "_at": at.astimezone(BEIJING)})
     reports.sort(key=lambda item: item["_at"])
+    report_times = [report["_at"] for report in reports]
 
     # 任务ID -> 素材ID：只有「新建」日志里同时带这两个，用它回填「暂停/调预算」
     task_materials: dict[str, str] = {}
@@ -524,7 +542,7 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
                     if _parse_ts(str(entry.get("time") or "").replace(" ", "T")).astimezone(BEIJING) == at:
                         raw = str(entry.get("summary") or "")
                         break
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001, S112
                     continue
             key = (at.isoformat(), name)
             if key in seen:
@@ -550,15 +568,6 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
                 )
             )
 
-    def near(moment: datetime, minutes: int) -> dict | None:
-        target = moment + timedelta(minutes=minutes)
-        best, best_gap = None, 10**9
-        for report in reports:
-            gap = abs((report["_at"] - target).total_seconds())
-            if gap < best_gap:
-                best, best_gap = report, gap
-        return best if best_gap <= NEIGHBOR_TOLERANCE_SECONDS else None
-
     def wroi(before: dict, after: dict) -> float | None:
         spend_delta = float(after.get("spend") or 0) - float(before.get("spend") or 0)
         gmv_delta = float(after.get("gmv") or 0) - float(before.get("gmv") or 0)
@@ -568,12 +577,13 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
 
     rows: list[dict] = []
     for at, name, raw, meta in events:
-        base = max((r for r in reports if r["_at"] <= at), key=lambda r: r["_at"], default=None)
+        base_index = bisect_right(report_times, at) - 1
+        base = reports[base_index] if base_index >= 0 else None
         if base is None:
             continue
-        before_report = near(base["_at"], -FORWARD_MINUTES)
-        after_10 = near(base["_at"], FORWARD_MINUTES)
-        after_20 = near(base["_at"], 2 * FORWARD_MINUTES)
+        before_report = _nearest_report(reports, report_times, base["_at"], -FORWARD_MINUTES)
+        after_10 = _nearest_report(reports, report_times, base["_at"], FORWARD_MINUTES)
+        after_20 = _nearest_report(reports, report_times, base["_at"], 2 * FORWARD_MINUTES)
         pre_roi = wroi(before_report, base) if before_report else None
         roi_10 = wroi(base, after_10) if after_10 else None
         roi_20 = wroi(base, after_20) if after_20 else None
@@ -637,15 +647,9 @@ def compute_scenarios(logs: Iterable[dict], min_sample: int | None = None) -> di
                 continue
             seen.add(key)
             op_events.append((at, name, meta))
-
-    def near(moment: datetime, minutes: int) -> dict | None:
-        target = moment + timedelta(minutes=minutes)
-        best, best_gap = None, 10**9
-        for report in reports:
-            gap = abs((report["_at"] - target).total_seconds())
-            if gap < best_gap:
-                best, best_gap = report, gap
-        return best if best_gap <= NEIGHBOR_TOLERANCE_SECONDS else None
+    op_events.sort(key=lambda item: item[0])
+    op_times = [at for at, _name, _meta in op_events]
+    report_times = [report["_at"] for report in reports]
 
     def wroi(before: dict, after: dict) -> float | None:
         spend_delta = float(after.get("spend") or 0) - float(before.get("spend") or 0)
@@ -656,8 +660,8 @@ def compute_scenarios(logs: Iterable[dict], min_sample: int | None = None) -> di
 
     rows = []
     for report in reports:
-        pre = near(report["_at"], -FORWARD_MINUTES)
-        post = near(report["_at"], FORWARD_MINUTES)
+        pre = _nearest_report(reports, report_times, report["_at"], -FORWARD_MINUTES)
+        post = _nearest_report(reports, report_times, report["_at"], FORWARD_MINUTES)
         if pre is None or post is None:
             continue
         pre_roi = wroi(pre, report)
@@ -665,11 +669,7 @@ def compute_scenarios(logs: Iterable[dict], min_sample: int | None = None) -> di
         if pre_roi is None or post_roi is None:
             continue
         velocity = (float(report.get("spend") or 0) - float(pre.get("spend") or 0)) / 10.0
-        names = {
-            name
-            for at, name, _meta in op_events
-            if abs((report["_at"] - at).total_seconds()) <= OP_WINDOW_SECONDS
-        }
+        names = _operation_names_near(op_events, op_times, report["_at"])
         rows.append(
             {
                 "delta": post_roi - pre_roi,

@@ -18,7 +18,9 @@ test("strategy banner is always visible with profile data", () => {
   );
   expect(screen.getByText(/盯盘策略 v3/)).toBeInTheDocument();
   expect(screen.getByText(/ROI >= 2.5/)).toBeInTheDocument();
-  expect(screen.getByText(/数据最新/)).toBeInTheDocument();
+  expect(screen.getByText(/策略已生效/)).toBeInTheDocument();
+  expect(screen.getByText(/策略时间/)).toBeInTheDocument();
+  expect(screen.queryByText(/数据最新/)).not.toBeInTheDocument();
 });
 
 test("decision panel requires an explicit confirmation click", () => {

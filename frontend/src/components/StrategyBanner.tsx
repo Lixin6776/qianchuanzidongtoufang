@@ -47,9 +47,9 @@ export function StrategyBanner({ profile }: { profile: StrategyBannerProfile }) 
           ))}
         </div>
         <span className={`strategy-freshness ${profile.freshness === "fresh" ? "status-fresh" : "status-stale"}`}>
-          {profile.freshness === "fresh" ? "数据最新" : "数据未刷新"}
+          {profile.freshness === "fresh" ? "策略已生效" : "策略未加载"}
         </span>
-        <time dateTime={timestamp}>{formatTimestamp(timestamp)}</time>
+        <time dateTime={timestamp} title="这是策略版本时间，不是实时数据时间">策略时间 · {formatTimestamp(timestamp)}</time>
       </div>
     </header>
   );

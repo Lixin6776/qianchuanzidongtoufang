@@ -1340,6 +1340,7 @@ class LiveWatchService:
         alert_notifier=None,
         cdp_reconnector=None,
         tick_timeout_seconds: float = 90.0,
+        side_data_timeout_seconds: float = 60.0,
         alert_repeat_seconds: float = 6 * 3600,
         state_path: Path = LIVE_WATCH_STATE_PATH,
     ) -> None:
@@ -1364,6 +1365,8 @@ class LiveWatchService:
         # 本场结束后：出复盘 → 停盯盘（下一场要手动开）
         self.session_end_handler = session_end_handler
         self.tick_timeout_seconds = tick_timeout_seconds
+        # 素材 / 平台日志 / 计划拆分是辅助数据，单项超时就跳过，不能拖垮主盯盘记录。
+        self.side_data_timeout_seconds = side_data_timeout_seconds
         self._ended_handled_for: str | None = None
         self._pending_stop_reason: str | None = None
         # 异常告警（读不到数据 / 数据停滞）。同类问题只报一次，恢复了才会再报。
@@ -1652,25 +1655,55 @@ class LiveWatchService:
                 plan = self.plan_provider()
             except Exception:  # noqa: BLE001
                 plan = None
-        split = None
-        if self.spend_split_provider is not None:
+        async def load_spend_split():
+            if self.spend_split_provider is None:
+                return None
             started_at = getattr(event, "live_started_at", None)
             try:
-                split = await self.spend_split_provider(started_at)
+                return await asyncio.wait_for(
+                    self.spend_split_provider(started_at),
+                    timeout=self.side_data_timeout_seconds,
+                )
             except TypeError:
                 # 兼容不接收场次参数的旧 provider
                 try:
-                    split = await self.spend_split_provider()
+                    return await asyncio.wait_for(
+                        self.spend_split_provider(),
+                        timeout=self.side_data_timeout_seconds,
+                    )
                 except Exception:  # noqa: BLE001
-                    split = None
+                    return None
             except Exception:  # noqa: BLE001
-                split = None
-        platform_ops = None
-        if self.platform_log_provider is not None:
+                return None
+
+        async def load_platform_ops():
+            if self.platform_log_provider is None:
+                return None
             try:
-                platform_ops = await self.platform_log_provider()
+                return await asyncio.wait_for(
+                    self.platform_log_provider(),
+                    timeout=self.side_data_timeout_seconds,
+                )
             except Exception:  # noqa: BLE001
-                platform_ops = None
+                return None
+
+        async def load_plan_splits():
+            if self.plan_split_provider is None:
+                return None
+            try:
+                return await asyncio.wait_for(
+                    self.plan_split_provider(),
+                    timeout=self.side_data_timeout_seconds,
+                )
+            except Exception:  # noqa: BLE001
+                return None
+
+        # 三个只读来源互不依赖，并行读取；单项卡住只丢辅助数据，不丢主快照。
+        split, platform_ops, plan_splits = await asyncio.gather(
+            load_spend_split(),
+            load_platform_ops(),
+            load_plan_splits(),
+        )
         # 数据停滞检测：连续 3 次消耗完全不变 → 场次可能已结束或大屏未刷新
         audit_notes: list[str] = []   # 自检记录（本轮做了什么核对），最后写进报表
         spend_now = float(event.metrics.spend or 0)
@@ -1829,12 +1862,6 @@ class LiveWatchService:
                     audit_notes.append(
                         "读到疑似换场，复读后确认仍在原场次，已忽略这次抖动"
                     )
-        plan_splits = None
-        if self.plan_split_provider is not None:
-            try:
-                plan_splits = await self.plan_split_provider()
-            except Exception:  # noqa: BLE001
-                plan_splits = None
         # 跨源自检：大屏 vs 素材口径（两套接口，差太多就提示，不是拿它判错）
         board_roi = getattr(event.metrics, "roi", None)
         mat_roi = (split or {}).get("split", {}).get("total_roi")
