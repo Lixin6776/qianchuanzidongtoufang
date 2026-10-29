@@ -558,7 +558,7 @@ async def test_material_analysis_job_reuses_fresh_report(tmp_path):
             "id": "fresh",
             "date": "2026-10-14",
             "metrics": {
-                "report_schema": 4,
+                "report_schema": 5,
                 "material_count": 50,
                 "sampled_material_count": 50,
                 "total_material_spend": 28756.76,
@@ -689,3 +689,4 @@ def test_material_analysis_emits_structured_material_actions():
     assert all(item["baseline"]["roi"] is not None for item in actions)
     assert all(item["success_criteria"] for item in actions)
     assert report["materials"][0]["material_id"] == "low-roi"
+    assert report["metrics"]["report_schema"] == 5

@@ -416,7 +416,7 @@ def _material_analysis(
     )
 
     summary = {
-        "report_schema": 4,
+        "report_schema": 5,
         "material_count": len(materials),
         "sampled_material_count": len(spent),
         "sampled_material_spend": sample_spend,
@@ -550,7 +550,7 @@ def build_material_analysis(
     else:
         assessment, directions = _generic_directions(roi_met)
         summary = {
-            "report_schema": 4,
+            "report_schema": 5,
             "material_count": 0,
             "sampled_material_count": 0,
             "sampled_material_spend": 0.0,
