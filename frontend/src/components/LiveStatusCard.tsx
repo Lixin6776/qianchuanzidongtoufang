@@ -200,12 +200,11 @@ export function LiveStatusCard({
     <section className={`live-status-card live-status-${tone}`} aria-label="实时盯盘状态">
       <header className="live-status-head">
         <div className="live-status-heading">
-          <span className="live-status-kicker">
-            <i className={`live-status-pulse${isEnded ? " is-ended" : ""}`} aria-hidden="true" />
-            LIVE OPS · 5 分钟盯盘
-          </span>
           <div className="live-status-titleline">
-            <h2>实时盯盘状态</h2>
+            <h2>
+              <i className={`live-status-pulse${isEnded ? " is-ended" : ""}`} aria-hidden="true" />
+              实时盯盘状态
+            </h2>
             <span>{roomName}</span>
           </div>
         </div>
@@ -273,3 +272,4 @@ export function LiveStatusCard({
     </section>
   );
 }
+

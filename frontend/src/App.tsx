@@ -17,6 +17,7 @@ import { type LiveMonitorEvent } from "./components/LiveMonitorPanel";
 import { LlmConnectionPanel } from "./components/LlmConnectionPanel";
 import { StrategyBanner, type StrategyBannerProfile } from "./components/StrategyBanner";
 import { ThresholdPanel } from "./components/ThresholdPanel";
+import { ToolIcon } from "./components/ToolIcon";
 import {
   connectMonitor,
   createActionConfirmation,
@@ -94,16 +95,16 @@ type ExecutionJob = {
 
 type ToolWindow = "live_watch" | "decisions" | "jobs" | "llm" | "api" | "learning" | "evaluation" | "feishu" | "advanced" | "asset";
 
-const tools: Array<{ id: ToolWindow; label: string; short: string }> = [
-  { id: "live_watch", label: "直播盯盘", short: "盯" },
-  { id: "decisions", label: "决策", short: "决" },
-  { id: "jobs", label: "直播运营助手", short: "运" },
-  { id: "llm", label: "大模型", short: "模" },
-  { id: "learning", label: "直播复盘", short: "复" },
-  { id: "evaluation", label: "素材分析", short: "素" },
-  { id: "feishu", label: "飞书", short: "飞" },
-  { id: "advanced", label: "数据源", short: "源" },
-  { id: "asset", label: "数据资产", short: "资" }
+const tools: Array<{ id: ToolWindow; label: string }> = [
+  { id: "live_watch", label: "直播盯盘" },
+  { id: "decisions", label: "决策" },
+  { id: "jobs", label: "直播运营助手" },
+  { id: "llm", label: "大模型" },
+  { id: "learning", label: "直播复盘" },
+  { id: "evaluation", label: "素材分析" },
+  { id: "feishu", label: "飞书" },
+  { id: "advanced", label: "数据源" },
+  { id: "asset", label: "数据资产" }
 ];
 
 export default function App() {
@@ -398,7 +399,7 @@ export default function App() {
                   onClick={() => setActiveWindow(item.id === "live_watch" ? null : item.id)}
                 >
                   <span className="tool-nav-main">
-                    <span className="tool-nav-short" aria-hidden="true">{item.short}</span>
+                    <span className="tool-nav-short" aria-hidden="true"><ToolIcon name={item.id} /></span>
                     <span>{item.label}</span>
                   </span>
                 </button>
@@ -476,3 +477,4 @@ export default function App() {
     </div>
   );
 }
+
