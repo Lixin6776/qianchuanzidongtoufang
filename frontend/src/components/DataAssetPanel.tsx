@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { getOpsOutcomeCases, getOpsOutcomeOverview, getOpsScenarios, opsCasesCsvUrl } from "../lib/api";
+import { ExecutionFeedbackPanel } from "./ExecutionFeedbackPanel";
+import { StrategyLifecyclePanel } from "./StrategyLifecyclePanel";
 import { OpsOutcomePanel } from "./OpsOutcomePanel";
 
 type ScenarioOp = {
@@ -39,13 +41,15 @@ type Overview = {
   };
 };
 
-type AssetTab = "overview" | "feedback" | "scenarios" | "cases";
+type AssetTab = "overview" | "feedback" | "scenarios" | "cases" | "strategies" | "execution";
 
 const TABS: Array<{ id: AssetTab; label: string }> = [
   { id: "overview", label: "概览" },
   { id: "feedback", label: "操作反馈" },
   { id: "scenarios", label: "决策场景" },
-  { id: "cases", label: "操作流水" }
+  { id: "cases", label: "操作流水" },
+  { id: "strategies", label: "策略建议" },
+  { id: "execution", label: "执行回流" }
 ];
 
 const VERDICT_LABEL: Record<string, string> = {
@@ -237,6 +241,18 @@ export function DataAssetPanel() {
           ) : !scenariosLoading && scenariosLoaded ? (
             <div className="module-empty-state"><strong>暂无决策场景结论</strong><span>继续积累同场景操作样本后再判断。</span></div>
           ) : null}
+        </div>
+      ) : null}
+
+      {tab === "strategies" ? (
+        <div className="module-tab-panel" role="tabpanel">
+          <StrategyLifecyclePanel />
+        </div>
+      ) : null}
+
+      {tab === "execution" ? (
+        <div className="module-tab-panel" role="tabpanel">
+          <ExecutionFeedbackPanel />
         </div>
       ) : null}
 

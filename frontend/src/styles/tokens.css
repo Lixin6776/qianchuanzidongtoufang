@@ -2598,3 +2598,78 @@ a.button-outline {
 .verdict-insufficient,
 .verdict-unknown { background: #f4f5f7; color: #7f8a99; }
 .verdict-flat { background: #eef3f8; color: #536b85; }
+
+/* Strategy lifecycle and execution feedback */
+.strategy-list,
+.execution-feedback-list { display: grid; gap: 12px; }
+.strategy-card,
+.execution-feedback-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+.strategy-card > header,
+.execution-feedback-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.strategy-card > header > div,
+.execution-feedback-card > header > div { display: grid; gap: 3px; }
+.strategy-change-list,
+.execution-diff { display: grid; gap: 6px; margin: 0; }
+.strategy-change-list > div,
+.execution-diff > div {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+}
+.strategy-change-list dt,
+.execution-diff span { color: var(--color-text-secondary); font-size: 12px; }
+.strategy-change-list dd,
+.execution-diff code { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.strategy-evaluation {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+  background: #f4f8ff;
+}
+.strategy-evaluation > div { display: flex; justify-content: space-between; gap: 12px; }
+.strategy-evaluation p { margin: 0; color: var(--color-text-secondary); font-size: 12px; }
+.strategy-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.decision-input {
+  min-width: 180px;
+  flex: 1 1 220px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+.execution-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.execution-meta > span {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.execution-link-linked { color: var(--color-success); }
+.execution-link-candidate { color: var(--color-warning); }
+.execution-link-unlinked { color: var(--color-text-secondary); }
+@media (max-width: 640px) {
+  .strategy-card > header,
+  .execution-feedback-card > header,
+  .strategy-evaluation > div { flex-direction: column; }
+}

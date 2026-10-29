@@ -75,3 +75,107 @@ def test_accept_suggestion_creates_inactive_draft_with_adjustment(client, profil
     draft = db_session.query(StrategyProfile).filter_by(version=profile.version + 1).one()
     assert draft.active is False
     assert draft.hard_constraints["learning_adjustments"] == {"roi_floor_delta": 0.1}
+
+
+def test_suggestion_can_activate_and_rollback_to_parent_profile(client, profile, db_session):
+    from app.models import StrategyProfile
+
+    suggestion = StrategySuggestion(
+        id="s4",
+        strategy_profile_version=profile.version,
+        suggestion_type="threshold_adjustment",
+        proposed_change={"roi_floor_delta": 0.1},
+        evidence={"sample_size": 24},
+        confidence="high",
+        status="proposed",
+    )
+    db_session.add(suggestion)
+    db_session.commit()
+
+    accepted = client.post("/api/learning/suggestions/s4/accept")
+    assert accepted.status_code == 200
+    draft_id = accepted.json()["draft_profile_id"]
+
+    activated = client.post("/api/learning/suggestions/s4/activate")
+    assert activated.status_code == 200
+    assert activated.json()["status"] == "active"
+    draft = db_session.get(StrategyProfile, draft_id)
+    assert draft.active is True
+    assert draft.parent_profile_id == profile.id
+
+    rolled_back = client.post(
+        "/api/learning/suggestions/s4/rollback",
+        json={"reason": "新版本观察期 ROI 下降"},
+    )
+    assert rolled_back.status_code == 200
+    assert rolled_back.json()["status"] == "rolled_back"
+    db_session.expire_all()
+    active = db_session.query(StrategyProfile).filter_by(active=True).one()
+    assert active.id == profile.id
+    assert db_session.get(StrategySuggestion, "s4").evidence["rollback_reason"] == "新版本观察期 ROI 下降"
+
+
+def test_evaluate_endpoint_marks_insufficient_and_blocks_keep(client, profile, db_session, monkeypatch):
+    from app.main import app
+    from app.models import StrategyEvaluation, StrategySuggestion
+
+    suggestion = StrategySuggestion(
+        id="s5",
+        strategy_profile_version=profile.version,
+        suggestion_type="threshold_adjustment",
+        proposed_change={"roi_floor_delta": 0.1},
+        evidence={"sample_size": 24},
+        confidence="high",
+        status="proposed",
+    )
+    db_session.add(suggestion)
+    db_session.commit()
+    client.post("/api/learning/suggestions/s5/accept")
+    client.post("/api/learning/suggestions/s5/activate")
+    monkeypatch.setattr(
+        app.state.live_watch_service.store,
+        "list_analysis_logs",
+        lambda limit=20000: [],
+    )
+
+    evaluated = client.post("/api/learning/suggestions/s5/evaluate")
+    assert evaluated.status_code == 200
+    assert evaluated.json()["verdict"] == "insufficient_data"
+    db_session.expire_all()
+    stored = db_session.get(StrategySuggestion, "s5")
+    assert stored.status == "evaluated"
+    assert stored.evaluation_id is not None
+    assert db_session.get(StrategyEvaluation, stored.evaluation_id) is not None
+
+    kept = client.post("/api/learning/suggestions/s5/keep", json={"reason": "观察期数据不足"})
+    assert kept.status_code == 409
+    assert "样本不足" in kept.json()["detail"]
+
+
+def test_keep_requires_actionable_evaluation(client, profile, db_session):
+    from app.models import StrategyEvaluation, StrategySuggestion
+
+    suggestion = StrategySuggestion(
+        id="s6",
+        strategy_profile_version=profile.version,
+        suggestion_type="threshold_adjustment",
+        proposed_change={"roi_floor_delta": 0.1},
+        evidence={"sample_size": 24},
+        confidence="high",
+        status="evaluated",
+        evaluation_id="eval-ok",
+    )
+    evaluation = StrategyEvaluation(
+        id="eval-ok",
+        sample_size=24,
+        effect_size=0.3,
+        confidence="high",
+        verdict="positive",
+        evidence={"observation_only": True},
+    )
+    db_session.add_all([suggestion, evaluation])
+    db_session.commit()
+
+    kept = client.post("/api/learning/suggestions/s6/keep", json={"reason": "观察期正向"})
+    assert kept.status_code == 200
+    assert kept.json()["status"] == "kept"

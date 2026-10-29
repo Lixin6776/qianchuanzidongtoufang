@@ -52,7 +52,7 @@ class SqliteWatchLogStore:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT a.id, a.created_at, a.source, a.spend, a.gmv, a.operations, "
-                "a.online_viewers, a.cpm, a.exposure_view_rate, a.roi, a.assist_share "
+                "a.online_viewers, a.cpm, a.exposure_view_rate, a.roi, a.assist_share, a.roi_target "
                 "FROM watch_analysis a JOIN watch_reports w ON w.id = a.id "
                 "ORDER BY a.created_at DESC, a.rowid DESC LIMIT ?",
                 (max(1, int(limit)),),
@@ -75,6 +75,7 @@ class SqliteWatchLogStore:
                     "exposure_view_rate": row[8],
                     "roi": row[9],
                     "assist_share": row[10],
+                    "roi_target": row[11],
                     "_operations": operations if isinstance(operations, list) else [],
                 }
             )
@@ -152,7 +153,8 @@ class SqliteWatchLogStore:
                     cpm REAL,
                     exposure_view_rate REAL,
                     roi REAL,
-                    assist_share REAL
+                    assist_share REAL,
+                    roi_target REAL
                 )"""
             )
             self._ensure_analysis_columns(conn)
@@ -221,6 +223,7 @@ class SqliteWatchLogStore:
             "exposure_view_rate": "REAL",
             "roi": "REAL",
             "assist_share": "REAL",
+            "roi_target": "REAL",
         }
         added = False
         for name, kind in wanted.items():
@@ -246,8 +249,8 @@ class SqliteWatchLogStore:
         conn.execute(
             "INSERT OR REPLACE INTO watch_analysis "
             "(id, created_at, source, spend, gmv, operations, payload_hash, "
-            "online_viewers, cpm, exposure_view_rate, roi, assist_share) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "online_viewers, cpm, exposure_view_rate, roi, assist_share, roi_target) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 str(report.get("id") or ""),
                 str(report.get("created_at") or ""),
@@ -261,6 +264,7 @@ class SqliteWatchLogStore:
                 self._numeric(report.get("exposure_view_rate")),
                 self._numeric(report.get("roi")),
                 self._assist_share(report),
+                self._numeric(report.get("roi_target")),
             ),
         )
 

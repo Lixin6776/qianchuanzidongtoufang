@@ -29,6 +29,7 @@ from app.api.profiles import router as profiles_router
 from app.api.recommendations import router as recommendations_router
 from app.config import settings
 from app.db import Base, SessionLocal, engine
+from app.db_schema import ensure_runtime_schema
 from app.execution.api_provider import ApiExecutionProvider
 from app.execution.cdp.factory import create_cdp_execution_provider
 from app.execution.cdp.live_snapshot import LiveBoardSnapshotReader, unavailable_snapshot
@@ -259,6 +260,7 @@ async def lifespan(application: FastAPI):
     load_llm_config(settings)
     load_api_config(settings)
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema(engine)
 
     def current_profile() -> MonitorProfile:
         with SessionLocal() as session:

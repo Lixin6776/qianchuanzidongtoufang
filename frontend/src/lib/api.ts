@@ -131,6 +131,48 @@ export async function decideLearningSuggestion(id: string, decision: "accept" | 
   if (!response.ok) throw new Error("Suggestion decision failed");
   return response.json();
 }
+
+export async function activateLearningSuggestion(id: string) {
+  const response = await fetch(`${API_BASE}/api/learning/suggestions/${id}/activate`, {
+    method: "POST"
+  });
+  if (!response.ok) throw new Error("Suggestion activation failed");
+  return response.json();
+}
+
+export async function evaluateLearningSuggestion(id: string) {
+  const response = await fetch(`${API_BASE}/api/learning/suggestions/${id}/evaluate`, {
+    method: "POST"
+  });
+  if (!response.ok) throw new Error("Suggestion evaluation failed");
+  return response.json();
+}
+
+export async function keepLearningSuggestion(id: string, reason = "") {
+  const response = await fetch(`${API_BASE}/api/learning/suggestions/${id}/keep`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason })
+  });
+  if (!response.ok) throw new Error("Suggestion keep failed");
+  return response.json();
+}
+
+export async function rollbackLearningSuggestion(id: string, reason = "") {
+  const response = await fetch(`${API_BASE}/api/learning/suggestions/${id}/rollback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason })
+  });
+  if (!response.ok) throw new Error("Suggestion rollback failed");
+  return response.json();
+}
+
+export async function getExecutionFeedback() {
+  const response = await fetch(`${API_BASE}/api/learning/execution-cases`);
+  if (!response.ok) throw new Error("Failed to load execution feedback");
+  return response.json();
+}
 export type ApiConnectionStatus = {
   configured: boolean;
   provider_preference: "api" | "cdp";

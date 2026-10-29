@@ -20,6 +20,10 @@ class StrategyProfileRead(StrategyProfileCreate):
     id: str
     version: int
     active: bool
+    source_suggestion_id: str | None = None
+    parent_profile_id: str | None = None
+    activated_at: datetime | None = None
+    retired_at: datetime | None = None
     created_at: datetime
     effective_at: datetime
 
@@ -82,6 +86,10 @@ class StrategyEvaluationRead(BaseModel):
 
     id: str
     case_id: str | None
+    strategy_profile_id: str | None = None
+    suggestion_id: str | None = None
+    window_start: datetime | None = None
+    window_end: datetime | None = None
     sample_size: int
     effect_size: float | None
     confidence: str
@@ -100,4 +108,8 @@ class StrategySuggestionRead(BaseModel):
     evidence: dict
     confidence: str
     status: str
+    draft_profile_id: str | None = None
+    activated_profile_id: str | None = None
+    evaluation_id: str | None = None
+    decided_at: datetime | None = None
     created_at: datetime

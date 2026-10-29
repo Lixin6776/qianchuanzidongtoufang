@@ -89,7 +89,39 @@ vi.mock("../lib/api", () => ({
     ],
     note: "观察性相关，不是因果。"
   }),
-  getOpsOutcomeSnapshots: vi.fn().mockResolvedValue([])
+  getOpsOutcomeSnapshots: vi.fn().mockResolvedValue([]),
+  getLearningSuggestions: vi.fn().mockResolvedValue([
+    {
+      id: "s1",
+      strategy_profile_version: 1,
+      suggestion_type: "阈值调整",
+      proposed_change: { roi_floor_delta: 0.1 },
+      evidence: { sample_size: 24 },
+      confidence: "high",
+      status: "proposed",
+      created_at: "2026-10-29T08:00:00+08:00"
+    }
+  ]),
+  getLearningEvaluations: vi.fn().mockResolvedValue([]),
+  activateLearningSuggestion: vi.fn().mockResolvedValue({}),
+  evaluateLearningSuggestion: vi.fn().mockResolvedValue({}),
+  keepLearningSuggestion: vi.fn().mockResolvedValue({}),
+  rollbackLearningSuggestion: vi.fn().mockResolvedValue({}),
+  decideLearningSuggestion: vi.fn().mockResolvedValue({}),
+  getExecutionFeedback: vi.fn().mockResolvedValue([
+    {
+      execution_job_id: "job-12345678",
+      confirmation_id: "confirm-12345678",
+      action_name: "pause_plan",
+      status: "succeeded",
+      created_at: "2026-10-29T08:00:00+08:00",
+      before: { status: "active" },
+      after: { status: "paused" },
+      platform_log_status: "待回流",
+      link_status: "candidate",
+      linked_operation: { at: "2026-10-29 08:04", operation: "暂停追投", verdict: "negative", delta_10m: -0.2 }
+    }
+  ])
 }));
 
 import { DataAssetPanel } from "../components/DataAssetPanel";
@@ -109,4 +141,9 @@ test("数据资产窗口：展示操作反馈 + 流速分层 + 因果声明", as
   expect(await screen.findByText("流速加快")).toBeInTheDocument();
 
   expect(screen.getAllByText(/不是因果|观察性相关/).length).toBeGreaterThan(0);
+
+  fireEvent.click(screen.getByRole("tab", { name: "策略建议" }));
+  expect(await screen.findByText("阈值调整")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("tab", { name: "执行回流" }));
+  expect(await screen.findByText("候选关联")).toBeInTheDocument();
 });
