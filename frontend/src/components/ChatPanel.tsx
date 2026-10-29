@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { ChatReportCard } from "./ChatReportCard";
+import { PaperclipIcon } from "./ToolIcon";
 import { MAX_CHAT_IMAGES, pickImages, type PickedImage } from "../lib/images";
 
 export type ActionPreview = {
@@ -296,7 +297,7 @@ export function ChatPanel({
           disabled={pending || attached.length >= MAX_CHAT_IMAGES}
           onClick={() => fileRef.current?.click()}
         >
-          📎
+          <PaperclipIcon />
         </button>
         <input
           aria-label="输入投放问题"

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { ExecutionTimeline } from "./ExecutionTimeline";
 import { ReportMessage } from "./ReportMessage";
+import { PaperclipIcon } from "./ToolIcon";
 import {
   generateOpsBriefing,
   getOpsChatMessages,
@@ -132,21 +133,18 @@ export function OpsChatPanel({
 
   return (
     <section className="ops-chat-panel">
-      <div className="ops-chat-intro">
-        <p className="eyebrow">Senior Live Ops · chatbot</p>
-        <h3>直播运营助手</h3>
-        <p className="ops-role-desc">
-          资深直播运营专家，负责本账号的盯盘、复盘、素材与沟通。
-          所有判断都带数据依据；数据没过校验就不出结论；写操作必须你确认后才执行。
-        </p>
-      </div>
-
-      <div className="ops-chat-head">
-        <span>跨场次保留 · 每天 8:05 自动汇报</span>
+      <div className="module-toolbar ops-chat-toolbar">
+        <div>
+          <strong>跨场次运营对话</strong>
+          <span>每天 8:05 自动汇报 · 每场直播结束自动沉淀复盘</span>
+        </div>
         <button className="button-outline" type="button" onClick={handleBriefing} disabled={briefing}>
           {briefing ? "生成中" : "立即生成今日汇报"}
         </button>
       </div>
+      <p className="ops-role-desc">
+        资深直播运营专家，负责盯盘、复盘、素材与沟通。所有判断带数据依据；数据未通过校验不出结论；写操作必须确认后执行。
+      </p>
 
       <div className="ops-chat-stream" ref={streamRef} aria-live="polite">
         <article className="message message-assistant">
@@ -244,7 +242,7 @@ export function OpsChatPanel({
           disabled={pending || attached.length >= MAX_IMAGES}
           onClick={() => fileRef.current?.click()}
         >
-          📎
+          <PaperclipIcon />
         </button>
         <input
           aria-label="和直播运营助手对话"

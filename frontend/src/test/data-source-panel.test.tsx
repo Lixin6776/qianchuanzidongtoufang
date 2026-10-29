@@ -76,5 +76,5 @@ test("数据源窗口可以直接改直播间/账户（不用碰 .env）", async
   expect(screen.getByLabelText("账户 ID")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   // 说明要讲清楚"留空=用 .env 的值"
-  expect(screen.getByText(/留空 = 用 .env 里的值/)).toBeInTheDocument();
+  expect(screen.getByText(/留空时使用 .env 里的值/)).toBeInTheDocument();
 });

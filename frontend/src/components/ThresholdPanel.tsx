@@ -98,7 +98,7 @@ export function ThresholdPanel() {
       <p className="eyebrow">Decision rules</p>
       <h3>判断标准</h3>
       <p className="ops-role-desc">
-        这些是判断"某个指标好不好"的线。**填了就用你填的**；留空则自动：
+        这些是判断“某个指标好不好”的线。填了就用你填的；留空则自动：
         先用本账户历史分位，样本不足再退回通用参考线（并在报告里标明"非本账户"）。
         {profile ? ` 当前策略 v${profile.version}。` : ""}
       </p>

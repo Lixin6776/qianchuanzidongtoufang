@@ -1,7 +1,51 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 
 vi.mock("../lib/api", () => ({
+  getOpsAssetDashboard: vi.fn().mockResolvedValue({
+    overview: {
+      asset_days: 12,
+      span: { start: "2026-10-07", end: "2026-10-19" },
+      watch_reports: 2431,
+      operation_events: 412,
+      operation_types: 10,
+      conclusions: 3,
+      reviews: 13,
+      analyses: 16,
+      health: { last_24h_total: 280, last_24h_valid: 245, valid_rate: 0.875, cdp_errors: 3 }
+    },
+    scenarios: {
+      scenarios: [
+        {
+          label: "流速加快",
+          control: { n: 131, median_delta: 0.083 },
+          operations: [
+            { operation: "加追投预算", n: 34, median_delta: -0.0001, net_effect: -0.0001, verdict: "neutral" }
+          ]
+        }
+      ],
+      velocity_cutoffs: { low: 75.3, high: 132.3 },
+      min_sample: 20,
+      note: "观察性相关，不是因果。"
+    },
+    cases: [
+      { at: "2026-10-19 12:23", operation: "加追投预算", before_roi: 2.44, after_10m_roi: 1.83, after_20m_roi: null, delta_10m: -0.61, verdict: "negative" }
+    ],
+    outcome: {
+      generated_at: "2026-10-19T08:10:00+08:00",
+      window_minutes: 10,
+      min_sample: 20,
+      baseline: { n: 346, median_delta: -0.098, positive_rate: 0.48, net_effect: 0, operation: "（基线）" },
+      treated: { n: 243, median_delta: 0.056, positive_rate: 0.55, net_effect: 0.154 },
+      operations: [
+        { operation: "加素材", n: 25, median_delta: 0.5, positive_rate: 0.68, net_effect: 0.53, verdict: "positive" }
+      ],
+      velocity_strata: [
+        { label: "中", treated: { n: 78 }, control: { n: 119 }, net_effect: 0.31, verdict: "positive" }
+      ],
+      note: "观察性相关，不是因果。"
+    }
+  }),
   getOpsScenarios: vi.fn().mockResolvedValue({
     scenarios: [
       {
@@ -53,10 +97,16 @@ import { DataAssetPanel } from "../components/DataAssetPanel";
 test("数据资产窗口：展示操作反馈 + 流速分层 + 因果声明", async () => {
   render(<DataAssetPanel />);
 
-  expect(screen.getByText("数据资产")).toBeInTheDocument();
+  expect(screen.getByText("数据证明了什么")).toBeInTheDocument();
+  expect(await screen.findByText("资产年龄")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("tab", { name: "操作反馈" }));
   expect(await screen.findByText("操作反馈表（近 10 分钟）")).toBeInTheDocument();
   expect(screen.getByText("按流速分层（更有用的切法）")).toBeInTheDocument();
   expect(screen.getByText("加素材")).toBeInTheDocument();
-  // 必须一直带着"非因果"的护栏
+
+  fireEvent.click(screen.getByRole("tab", { name: "决策场景" }));
+  expect(await screen.findByText("流速加快")).toBeInTheDocument();
+
   expect(screen.getAllByText(/不是因果|观察性相关/).length).toBeGreaterThan(0);
 });

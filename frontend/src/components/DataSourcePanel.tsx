@@ -180,7 +180,7 @@ export function DataSourcePanel() {
       <section className="data-source-config">
         <h4>盯哪个直播间 / 账户</h4>
         <p className="monitor-signal">
-          填在这里就不用改 backend/.env 了。**留空 = 用 .env 里的值**。
+          填在这里就不用改 backend/.env 了。留空时使用 .env 里的值。
           {effective.room_name ? ` 当前生效：${effective.room_name}` : ""}
           {effective.aavid ? `（账户 ${effective.aavid}）` : ""}
         </p>

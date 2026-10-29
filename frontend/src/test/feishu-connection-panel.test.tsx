@@ -77,3 +77,20 @@ test("connected feishu group saves toggles and sends a test card", async () => {
   fireEvent.click(screen.getByRole("button", { name: "发送测试卡片" }));
   expect(await screen.findByText("飞书测试卡片已发送")).toBeInTheDocument();
 });
+
+test("feishu raw authentication errors are summarized for operators", async () => {
+  const load = vi.fn().mockResolvedValue({
+    ...idleStatus,
+    auth_message: "飞书扫码连接成功。",
+    last_error: JSON.stringify({
+      ok: false,
+      error: { message: "need_user_authorization" }
+    })
+  });
+
+  render(<FeishuConnectionPanel load={load} />);
+
+  expect(await screen.findByText("飞书授权已失效，请重新扫码连接。")).toBeInTheDocument();
+  expect(screen.getByText("查看技术详情")).toBeInTheDocument();
+  expect(screen.queryByText("飞书扫码连接成功。")).not.toBeInTheDocument();
+});

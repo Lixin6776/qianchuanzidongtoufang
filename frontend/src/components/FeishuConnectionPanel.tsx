@@ -46,6 +46,22 @@ type Props = {
   test?: () => Promise<{ ok: boolean; message: string }>;
 };
 
+function friendlyFeishuError(raw: string) {
+  if (!raw) return "";
+  try {
+    const data = JSON.parse(raw) as {
+      error?: { message?: string };
+      message?: string;
+    };
+    const detail = data.error?.message || data.message || raw;
+    if (/token_missing|need_user_authorization|authentication/i.test(detail)) {
+      return "飞书授权已失效，请重新扫码连接。";
+    }
+    return "飞书发送失败，请检查连接状态或重新授权。";
+  } catch {
+    return raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
+  }
+}
 export function FeishuConnectionPanel({
   load = getFeishuStatus,
   start = startFeishuLogin,
@@ -247,9 +263,15 @@ export function FeishuConnectionPanel({
       </details>
 
       {message ? <p className="monitor-signal">{message}</p> : null}
-      {status?.auth_message ? <p className="empty-state">{status.auth_message}</p> : null}
+      {status?.auth_message && (pending || connected) ? <p className="empty-state">{status.auth_message}</p> : null}
       {status?.last_error ? (
-        <p className="monitor-signal">最近发送错误：{status.last_error}</p>
+        <div className="module-error">
+          <strong>{friendlyFeishuError(status.last_error)}</strong>
+          <details>
+            <summary>查看技术详情</summary>
+            <pre>{status.last_error}</pre>
+          </details>
+        </div>
       ) : null}
     </section>
   );

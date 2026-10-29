@@ -194,6 +194,32 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - Approval-based automation is visibly distinct but not celebratory.
 - Automation copy explicitly says execution still requires human confirmation.
 
+### Embedded Modules
+- Every tool uses the same main-window header and a quiet module toolbar; do not repeat the page title inside the panel.
+- Long reports use disclosure blocks with the newest report open and older reports collapsed.
+- Render Markdown through the shared report renderer; never expose raw Markdown markers.
+- Tables scroll horizontally on narrow screens and keep numeric data in tabular columns.
+- Heavy data views use tabs so expensive calculations are requested only when that tab is opened.
+
+### Module Tabs
+- **Style:** segmented strip on a muted surface, 6px inner radius, 32px minimum height.
+- **Active:** white surface, 1px blue-tinted border, dark blue text.
+- **Use:** data asset overview, operation feedback, scenarios, and operation ledger.
+
+### Report Disclosure
+- **Summary:** report title, one-line content description, timestamp, and disclosure indicator.
+- **Body:** rendered report content with a 76ch reading measure.
+- **Default:** newest report open; older reports collapsed.
+
+### Data Tables
+- **Header:** cool-blue tinted surface, 11–12px labels.
+- **Rows:** 1px separators, hover tint, no zebra striping.
+- **Verdicts:** text badges, not emoji-only indicators.
+
+### State Messages
+- **Loading:** spinner plus explicit calculation label.
+- **Empty:** dashed boundary with a concrete next step.
+- **Error:** human-readable recovery message; raw diagnostics stay inside a nested disclosure.
 ## Do's and Don'ts
 
 ### Do

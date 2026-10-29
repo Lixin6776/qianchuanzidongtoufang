@@ -18,7 +18,7 @@ type Stratum = {
   verdict: string;
 };
 
-type Payload = {
+export type OpsOutcomePayload = {
   baseline: Summary & { operation: string };
   operations: OpRow[];
   velocity_strata: Stratum[];
@@ -48,7 +48,7 @@ const SERIES_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#
  * 资产趋势折线：每种操作的净效应随每日快照怎么变。
  * 手写 SVG，不引图表库（保持安装零依赖）。
  */
-function TrendChart({ snapshots }: { snapshots: Array<{ date: string; snapshot: Payload }> }) {
+function TrendChart({ snapshots }: { snapshots: Array<{ date: string; snapshot: OpsOutcomePayload }> }) {
   if (snapshots.length < 2) return null;
 
   const names = Array.from(
@@ -123,19 +123,23 @@ function TrendChart({ snapshots }: { snapshots: Array<{ date: string; snapshot: 
  *   净效应 = 操作组中位Δ − 无操作对照组中位Δ（扣掉账户自然漂移）
  *   不是因果结论；n<20 只标"样本不足"。
  */
-export function OpsOutcomePanel() {
-  const [data, setData] = useState<Payload | null>(null);
-  const [snapshots, setSnapshots] = useState<Array<{ date: string; snapshot: Payload }>>([]);
+export function OpsOutcomePanel({ data: initialData }: { data?: OpsOutcomePayload | null } = {}) {
+  const [data, setData] = useState<OpsOutcomePayload | null>(initialData ?? null);
+  const [snapshots, setSnapshots] = useState<Array<{ date: string; snapshot: OpsOutcomePayload }>>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getOpsOutcome()
-      .then((value) => setData(value as Payload))
-      .catch(() => setError("读取失败，检查本地服务。"));
+    if (initialData) {
+      setData(initialData);
+    } else {
+      getOpsOutcome()
+        .then((value) => setData(value as OpsOutcomePayload))
+        .catch(() => setError("读取失败，检查本地服务。"));
+    }
     getOpsOutcomeSnapshots()
-      .then((value) => setSnapshots(value as Array<{ date: string; snapshot: Payload }>))
+      .then((value) => setSnapshots(value as Array<{ date: string; snapshot: OpsOutcomePayload }>))
       .catch(() => setSnapshots([]));
-  }, []);
+  }, [initialData]);
 
   // 趋势：最新两份快照对比（看样本在不在长、结论在不在变）
   const latest = snapshots.length >= 1 ? snapshots[snapshots.length - 1] : null;
