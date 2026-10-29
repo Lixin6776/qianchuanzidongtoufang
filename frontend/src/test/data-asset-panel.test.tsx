@@ -132,6 +132,9 @@ vi.mock("../lib/api", () => ({
   startMaterialExperiment: vi.fn().mockResolvedValue({}),
   evaluateMaterialExperiment: vi.fn().mockResolvedValue({}),
   stopMaterialExperiment: vi.fn().mockResolvedValue({}),
+  getOpsTasks: vi.fn().mockResolvedValue([]),
+  createOpsTask: vi.fn().mockResolvedValue({}),
+  updateOpsTask: vi.fn().mockResolvedValue({}),
   getExecutionFeedback: vi.fn().mockResolvedValue([
     {
       execution_job_id: "job-12345678",
@@ -172,4 +175,6 @@ test("数据资产窗口：展示操作反馈 + 流速分层 + 因果声明", as
   expect(await screen.findByText("候选关联")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("tab", { name: "素材实验" }));
   expect(await screen.findByText("复刻高 ROI 素材")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("tab", { name: "运营任务" }));
+  expect(await screen.findByText("新建运营任务")).toBeInTheDocument();
 });

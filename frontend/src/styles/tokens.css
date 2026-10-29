@@ -2673,3 +2673,12 @@ a.button-outline {
   .execution-feedback-card > header,
   .strategy-evaluation > div { flex-direction: column; }
 }
+
+.ops-task-form { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.ops-task-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.ops-task-form-grid label { display: grid; gap: 5px; color: var(--color-text-secondary); font-size: 12px; }
+.ops-task-form-grid label .form-control,
+.ops-task-form-grid label .form-select { width: 100%; }
+.ops-task-wide { grid-column: 1 / -1; }
+.ops-task-check { display: flex !important; align-items: center; gap: 7px !important; }
+@media (max-width: 640px) { .ops-task-form-grid { grid-template-columns: 1fr; } .ops-task-wide { grid-column: auto; } }

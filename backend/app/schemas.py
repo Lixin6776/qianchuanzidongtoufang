@@ -138,3 +138,45 @@ class MaterialExperimentRead(MaterialExperimentCreate):
     result: dict = {}
     created_at: datetime
     updated_at: datetime
+
+class OpsTaskCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    description: str = ""
+    source_type: str = "manual"
+    source_id: str | None = None
+    owner: str = ""
+    priority: str = "medium"
+    due_at: datetime | None = None
+    success_criteria: str = ""
+    stop_condition: str = ""
+    notify_feishu: bool = False
+
+
+class OpsTaskUpdate(BaseModel):
+    owner: str | None = None
+    priority: str | None = None
+    due_at: datetime | None = None
+    status: str | None = None
+    success_criteria: str | None = None
+    stop_condition: str | None = None
+    result: str | None = None
+
+
+class OpsTaskRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    description: str
+    source_type: str
+    source_id: str | None
+    owner: str
+    priority: str
+    due_at: datetime | None
+    status: str
+    success_criteria: str
+    stop_condition: str
+    result: str
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None

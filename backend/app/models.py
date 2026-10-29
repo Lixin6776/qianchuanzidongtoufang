@@ -153,3 +153,22 @@ class MaterialExperiment(Base):
     result: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+class OpsTask(Base):
+    __tablename__ = "ops_tasks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_type: Mapped[str] = mapped_column(String(40), nullable=False, default="manual")
+    source_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    owner: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    priority: Mapped[str] = mapped_column(String(16), nullable=False, default="medium")
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="open")
+    success_criteria: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    stop_condition: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    result: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -173,6 +173,32 @@ export async function getExecutionFeedback() {
   if (!response.ok) throw new Error("Failed to load execution feedback");
   return response.json();
 }
+
+export async function getOpsTasks() {
+  const response = await fetch(`${API_BASE}/api/ops-tasks`);
+  if (!response.ok) throw new Error("Failed to load ops tasks");
+  return response.json();
+}
+
+export async function createOpsTask(payload: Record<string, unknown>) {
+  const response = await fetch(`${API_BASE}/api/ops-tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error("Ops task creation failed");
+  return response.json();
+}
+
+export async function updateOpsTask(id: string, payload: Record<string, unknown>) {
+  const response = await fetch(`${API_BASE}/api/ops-tasks/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error("Ops task update failed");
+  return response.json();
+}
 export type ApiConnectionStatus = {
   configured: boolean;
   provider_preference: "api" | "cdp";
