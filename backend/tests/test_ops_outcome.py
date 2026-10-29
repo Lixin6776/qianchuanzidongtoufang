@@ -2,7 +2,13 @@
 
 from datetime import datetime, timedelta, timezone
 
-from app.services.ops_outcome import classify_operation, compute_ops_outcome
+from app.services.ops_outcome import (
+    classify_operation,
+    compute_asset_overview,
+    compute_op_cases,
+    compute_ops_outcome,
+    compute_scenarios,
+)
 
 BJ = timezone(timedelta(hours=8))
 
@@ -144,3 +150,45 @@ def test_compute_ops_outcome_scales_with_live_history():
 
     assert result["operation_events"] > 0
     assert elapsed < 2.5, f"1000 条真实规模日志耗时 {elapsed:.2f}s，疑似退回全表扫描"
+
+
+def test_analysis_projection_matches_full_payload_analytics(tmp_path):
+    """轻量投影必须与完整 payload 算出完全相同的反馈、场景、流水和概览。"""
+    from app.services.watch_log_store import SqliteWatchLogStore
+
+    logs = []
+    for i in range(15):
+        report = _report(i, spend=1000 + i * 300, gmv=2000 + i * 750)
+        report["id"] = f"r{i}"
+        report.update(
+            {
+                "spend_split": {"basic_spend": 400 + i * 20, "assist_spend": 600 + i * 30},
+                "online_viewers": 20 + i,
+                "cpm": 90 + i,
+                "exposure_view_rate": 4.5 + i / 100,
+                "roi": 2.0 + i / 100,
+            }
+        )
+        logs.append(report)
+    logs[6]["platform_operations"] = [
+        _op(6, "操作内容：素材追投，ID：1880000000000006；调控预算：3000.00元 -> 4000.00元")
+    ]
+
+    store = SqliteWatchLogStore(tmp_path / "w.sqlite3", tmp_path / "none.json")
+    for report in logs:
+        store.append(report)
+    full = store.list_logs(limit=100)
+    projected = store.list_analysis_logs(limit=100)
+
+    full_outcome = compute_ops_outcome(full)
+    projected_outcome = compute_ops_outcome(projected)
+    full_outcome.pop("generated_at", None)
+    projected_outcome.pop("generated_at", None)
+
+    assert projected_outcome == full_outcome
+    assert compute_scenarios(projected) == compute_scenarios(full)
+    full_cases = compute_op_cases(full, limit=100)
+    projected_cases = compute_op_cases(projected, limit=100)
+    assert len(full_cases) == 1
+    assert projected_cases == full_cases
+    assert compute_asset_overview(projected) == compute_asset_overview(full)

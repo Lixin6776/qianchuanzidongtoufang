@@ -2089,7 +2089,7 @@ class LiveWatchService:
         try:
             from app.services.ops_outcome import compute_ops_outcome
 
-            result = compute_ops_outcome(self.store.list_logs(limit=1500))
+            result = compute_ops_outcome(self.store.list_analysis_logs(limit=1500))
             rows = [
                 row
                 for row in result.get("operations", [])

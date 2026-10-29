@@ -136,15 +136,29 @@ def _op_meta(entry: dict) -> dict:
 def _ops_from_report(report: dict) -> list[tuple[datetime, str, dict]]:
     """从一条盯盘记录里取出操作（含任务/素材身份）。
 
-    新报告直接用结构化的 platform_operations；老报告回退去解析 markdown。
+    新报告直接用结构化的 platform_operations；分析投影优先使用预解析结果；
+    老报告最后回退去解析 markdown。
     """
+    if "_operations" in report:
+        projected: list[tuple[datetime, str, dict]] = []
+        for item in report.get("_operations") or []:
+            if not isinstance(item, dict):
+                continue
+            at = _parse_ts(item.get("at"))
+            name = str(item.get("operation") or "")
+            meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
+            if at is not None and name:
+                projected.append((at.astimezone(BEIJING), name, dict(meta)))
+        return projected
+
     out: list[tuple[datetime, str, dict]] = []
     for entry in report.get("platform_operations") or []:
         at = _parse_ts(str(entry.get("time") or "").replace(" ", "T"))
         if at is not None:
-            out.append(
-                (at.astimezone(BEIJING), classify_operation(entry), _op_meta(entry))
-            )
+            meta = _op_meta(entry)
+            meta["raw"] = str(entry.get("summary") or "")
+            meta["_origin"] = "platform"
+            out.append((at.astimezone(BEIJING), classify_operation(entry), meta))
     if out:
         return out
 
@@ -182,7 +196,10 @@ def _ops_from_report(report: dict) -> list[tuple[datetime, str, dict]]:
         if at is None:
             continue
         entry = {"summary": text, "type": "新建" if "新建" in text[:30] else "修改"}
-        out.append((at, classify_operation(entry), _op_meta(entry)))
+        meta = _op_meta(entry)
+        meta["raw"] = text
+        meta["_origin"] = "markdown"
+        out.append((at, classify_operation(entry), meta))
     return out
 
 
@@ -487,10 +504,12 @@ def _state_of(report: dict, before_window: dict | None) -> dict:
             velocity = (
                 float(report.get("spend") or 0) - float(before_window.get("spend") or 0)
             ) / minutes
-    split = report.get("spend_split") or {}
-    basic = float(split.get("basic_spend") or 0)
-    assist = float(split.get("assist_spend") or 0)
-    assist_share = assist / (basic + assist) if (basic + assist) > 0 else None
+    assist_share = report.get("assist_share")
+    if assist_share is None:
+        split = report.get("spend_split") or {}
+        basic = float(split.get("basic_spend") or 0)
+        assist = float(split.get("assist_spend") or 0)
+        assist_share = assist / (basic + assist) if (basic + assist) > 0 else None
     return {
         "velocity": round(velocity, 1) if velocity is not None else None,
         "online_viewers": report.get("online_viewers"),
@@ -522,8 +541,9 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
     task_materials: dict[str, str] = {}
     task_names: dict[str, str] = {}
     for report in reports:
-        for entry in report.get("platform_operations") or []:
-            meta = _op_meta(entry)
+        for _at, _name, meta in _ops_from_report(report):
+            if meta.get("_origin") != "platform":
+                continue
             task_id = meta.get("task_id")
             if not task_id:
                 continue
@@ -537,13 +557,8 @@ def compute_op_cases(logs: Iterable[dict], limit: int = 200) -> list[dict]:
     for report in reports:
         for at, name, meta in _ops_from_report(report):
             raw = ""
-            for entry in report.get("platform_operations") or []:
-                try:
-                    if _parse_ts(str(entry.get("time") or "").replace(" ", "T")).astimezone(BEIJING) == at:
-                        raw = str(entry.get("summary") or "")
-                        break
-                except Exception:  # noqa: BLE001, S112
-                    continue
+            if meta.get("_origin") == "platform":
+                raw = str(meta.get("raw") or "")
             key = (at.isoformat(), name)
             if key in seen:
                 continue

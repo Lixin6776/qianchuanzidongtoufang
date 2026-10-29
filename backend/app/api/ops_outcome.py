@@ -35,7 +35,7 @@ def ops_outcome_snapshots() -> list[dict]:
 def ops_outcome_overview(request: Request) -> dict:
     """数据资产概览：资产有多厚、结论几条、最近 24h 数据健不健康。"""
     state = request.app.state
-    logs = state.live_watch_service.store.list_logs(limit=20000)
+    logs = state.live_watch_service.store.list_analysis_logs(limit=20000)
     reviews = 0
     analyses = 0
     try:
@@ -52,14 +52,14 @@ def ops_outcome_overview(request: Request) -> dict:
 @router.get("/cases")
 def ops_outcome_cases(request: Request, limit: int = 200) -> list[dict]:
     """操作流水：每一笔操作 + 前后的边际 ROI（可追溯）。"""
-    logs = request.app.state.live_watch_service.store.list_logs(limit=20000)
+    logs = request.app.state.live_watch_service.store.list_analysis_logs(limit=20000)
     return compute_op_cases(logs, limit=limit)
 
 
 @router.get("/cases.csv")
 def ops_outcome_cases_csv(request: Request, limit: int = 2000) -> StreamingResponse:
     """导出操作流水 CSV（备份 / 换电脑 / 发人）。"""
-    logs = request.app.state.live_watch_service.store.list_logs(limit=20000)
+    logs = request.app.state.live_watch_service.store.list_analysis_logs(limit=20000)
     rows = compute_op_cases(logs, limit=limit)
     buffer = io.StringIO()
     buffer.write("\ufeff")  # Excel 识别 UTF-8
@@ -99,5 +99,5 @@ def ops_outcome_cases_csv(request: Request, limit: int = 2000) -> StreamingRespo
 @router.get("/scenarios")
 def ops_outcome_scenarios(request: Request) -> dict:
     """决策场景 × 操作 × 结果：我现在这个状态，该做什么。"""
-    logs = request.app.state.live_watch_service.store.list_logs(limit=20000)
+    logs = request.app.state.live_watch_service.store.list_analysis_logs(limit=20000)
     return compute_scenarios(logs)

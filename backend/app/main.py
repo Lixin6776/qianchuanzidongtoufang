@@ -228,7 +228,7 @@ async def run_asset_snapshot(application: FastAPI) -> dict:
         from app.services.ops_outcome import AssetSnapshotStore, compute_ops_outcome
 
         store = application.state.live_watch_service.store
-        result = compute_ops_outcome(store.list_logs(limit=1500))
+        result = compute_ops_outcome(store.list_analysis_logs(limit=1500))
         AssetSnapshotStore().record(result)
         return {"date": str(result.get("generated_at") or "")[:10]}
     except Exception:  # noqa: BLE001
