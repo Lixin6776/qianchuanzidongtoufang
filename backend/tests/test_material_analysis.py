@@ -651,3 +651,41 @@ async def test_material_reader_dedupes_same_ad_detail_pages():
     assert dup.closed is True
     assert keep.closed is False
     assert other.closed is False   # 不同 adId 不动
+
+
+def test_material_analysis_emits_structured_material_actions():
+    report = build_material_analysis(
+        PlanSnapshot(id="plan-1", name="计划一", status="active", budget=5000, roi_goal=2.5),
+        _event(),
+        report_date=date(2026, 10, 1),
+        materials=[
+            MaterialMetric(
+                material_id="low-roi",
+                name="低 ROI 跑量素材",
+                spend=5000,
+                roi=1.2,
+                gmv=6000,
+                orders=20,
+                ctr=4.1,
+                conversion_rate=2.0,
+            ),
+            MaterialMetric(
+                material_id="winner",
+                name="高 ROI 素材",
+                spend=3000,
+                roi=3.2,
+                gmv=9600,
+                orders=32,
+                ctr=3.6,
+                conversion_rate=4.5,
+            ),
+        ],
+    )
+
+    actions = report["material_actions"]
+    assert len(actions) >= 2
+    assert {item["material_id"] for item in actions} == {"low-roi", "winner"}
+    assert all(item["action_type"] for item in actions)
+    assert all(item["baseline"]["roi"] is not None for item in actions)
+    assert all(item["success_criteria"] for item in actions)
+    assert report["materials"][0]["material_id"] == "low-roi"

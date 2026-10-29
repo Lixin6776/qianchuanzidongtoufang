@@ -20,6 +20,7 @@ from app.api.local_config import router as local_config_router
 from app.api.live_reviews import router as live_reviews_router
 from app.api.llm_connection import router as llm_connection_router
 from app.api.material_analyses import router as material_analyses_router
+from app.api.material_experiments import router as material_experiments_router
 from app.api.monitor import router as monitor_router
 from app.api.notifications import router as notifications_router
 from app.api.ops_outcome import router as ops_outcome_router
@@ -825,6 +826,7 @@ app.include_router(live_watch_router)
 app.include_router(live_reviews_router)
 app.include_router(ops_outcome_router)
 app.include_router(material_analyses_router)
+app.include_router(material_experiments_router)
 app.include_router(notifications_router)
 app.include_router(ops_chat_router)
 app.include_router(local_config_router)

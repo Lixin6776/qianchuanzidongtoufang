@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getOpsOutcomeCases, getOpsOutcomeOverview, getOpsScenarios, opsCasesCsvUrl } from "../lib/api";
 import { ExecutionFeedbackPanel } from "./ExecutionFeedbackPanel";
 import { StrategyLifecyclePanel } from "./StrategyLifecyclePanel";
+import { MaterialExperimentPanel } from "./MaterialExperimentPanel";
 import { OpsOutcomePanel } from "./OpsOutcomePanel";
 
 type ScenarioOp = {
@@ -41,7 +42,7 @@ type Overview = {
   };
 };
 
-type AssetTab = "overview" | "feedback" | "scenarios" | "cases" | "strategies" | "execution";
+type AssetTab = "overview" | "feedback" | "scenarios" | "cases" | "strategies" | "execution" | "materials";
 
 const TABS: Array<{ id: AssetTab; label: string }> = [
   { id: "overview", label: "概览" },
@@ -49,7 +50,8 @@ const TABS: Array<{ id: AssetTab; label: string }> = [
   { id: "scenarios", label: "决策场景" },
   { id: "cases", label: "操作流水" },
   { id: "strategies", label: "策略建议" },
-  { id: "execution", label: "执行回流" }
+  { id: "execution", label: "执行回流" },
+  { id: "materials", label: "素材实验" }
 ];
 
 const VERDICT_LABEL: Record<string, string> = {
@@ -253,6 +255,12 @@ export function DataAssetPanel() {
       {tab === "execution" ? (
         <div className="module-tab-panel" role="tabpanel">
           <ExecutionFeedbackPanel />
+        </div>
+      ) : null}
+
+      {tab === "materials" ? (
+        <div className="module-tab-panel" role="tabpanel">
+          <MaterialExperimentPanel />
         </div>
       ) : null}
 

@@ -113,3 +113,28 @@ class StrategySuggestionRead(BaseModel):
     evaluation_id: str | None = None
     decided_at: datetime | None = None
     created_at: datetime
+
+class MaterialExperimentCreate(BaseModel):
+    analysis_id: str
+    analysis_date: str
+    material_id: str
+    material_name: str = ""
+    action_type: str
+    title: str
+    reason: str = ""
+    baseline_metrics: dict = {}
+    success_criteria: dict = {}
+    stop_condition: str = ""
+
+
+class MaterialExperimentRead(MaterialExperimentCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    status: str
+    execution_job_id: str | None = None
+    observation_started_at: datetime | None = None
+    observation_ends_at: datetime | None = None
+    result: dict = {}
+    created_at: datetime
+    updated_at: datetime

@@ -333,6 +333,44 @@ export async function generateMaterialAnalysis() {
   return response.json();
 }
 
+export async function getMaterialExperiments() {
+  const response = await fetch(`${API_BASE}/api/material-experiments`);
+  if (!response.ok) throw new Error("Failed to load material experiments");
+  return response.json();
+}
+
+export async function createMaterialExperiment(payload: Record<string, unknown>) {
+  const response = await fetch(`${API_BASE}/api/material-experiments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error("Material experiment creation failed");
+  return response.json();
+}
+
+export async function startMaterialExperiment(id: string) {
+  const response = await fetch(`${API_BASE}/api/material-experiments/${id}/start`, { method: "POST" });
+  if (!response.ok) throw new Error("Material experiment start failed");
+  return response.json();
+}
+
+export async function evaluateMaterialExperiment(id: string) {
+  const response = await fetch(`${API_BASE}/api/material-experiments/${id}/evaluate`, { method: "POST" });
+  if (!response.ok) throw new Error("Material experiment evaluation failed");
+  return response.json();
+}
+
+export async function stopMaterialExperiment(id: string, reason = "") {
+  const response = await fetch(`${API_BASE}/api/material-experiments/${id}/stop`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason })
+  });
+  if (!response.ok) throw new Error("Material experiment stop failed");
+  return response.json();
+}
+
 export function connectNotifications(onEvent: (event: unknown) => void) {
   return subscribeSse("/api/notifications/events", "notification", onEvent);
 }

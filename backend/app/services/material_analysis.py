@@ -445,6 +445,76 @@ def _material_analysis(
     )
 
 
+def _structured_material_actions(
+    materials: list[MaterialMetric],
+    roi_target: float | None,
+) -> list[dict]:
+    """把素材判断压成可创建实验的结构化动作。"""
+    spent = [item for item in materials if item.spend > 0]
+    if not spent:
+        return []
+    total = sum(item.spend for item in spent)
+    cutoff = max(500.0, total * 0.05)
+    actions: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(item: MaterialMetric, action_type: str, title: str, reason: str) -> None:
+        key = (item.material_id, action_type)
+        if key in seen:
+            return
+        seen.add(key)
+        criteria = (
+            {"roi_min": round(roi_target, 2), "min_orders": 10}
+            if roi_target is not None
+            else {"roi_improvement_min": 0.1, "min_orders": 10}
+        )
+        actions.append(
+            {
+                "key": f"{item.material_id}:{action_type}",
+                "material_id": item.material_id,
+                "material_name": item.name,
+                "action_type": action_type,
+                "title": title,
+                "reason": reason,
+                "baseline": {
+                    "spend": round(item.spend, 2),
+                    "roi": item.roi,
+                    "orders": item.orders,
+                    "ctr": item.ctr,
+                    "conversion_rate": item.conversion_rate,
+                },
+                "success_criteria": criteria,
+                "stop_condition": "素材消耗持续下降或 ROI 低于观察基线，停止实验并复核素材与承接。",
+            }
+        )
+
+    for item in spent:
+        if roi_target is not None and item.roi is not None and item.roi < roi_target * 0.8:
+            add(
+                item,
+                "optimize_conversion",
+                "优化承接或测试新素材",
+                f"素材 ROI {item.roi:.2f} 低于目标 {roi_target:.2f} 的 80%，先检查承接和内容匹配，不直接删除高跑量素材。",
+            )
+        elif roi_target is not None and item.roi is not None and item.roi >= roi_target:
+            if item.spend < cutoff:
+                add(
+                    item,
+                    "increase_test_budget",
+                    "增加测试预算",
+                    f"素材 ROI {item.roi:.2f} 达标但消耗仅 ¥{item.spend:,.2f}，可小步增加测试预算。",
+                )
+            else:
+                add(
+                    item,
+                    "replicate_winner",
+                    "复刻高 ROI 素材",
+                    f"素材 ROI {item.roi:.2f} 达到目标 {roi_target:.2f}，优先复制开场钩子和表达结构做变体。",
+                )
+
+    return actions[:12]
+
+
 def build_material_analysis(
     plan: PlanSnapshot | None,
     event: MonitorEvent | None,
@@ -550,6 +620,8 @@ def build_material_analysis(
         "created_at": now.isoformat(),
         "report_markdown": report,
         "metrics": metrics_payload,
+        "materials": [item.model_dump(mode="json") for item in (materials or [])],
+        "material_actions": _structured_material_actions(list(materials or []), roi_target),
     }
 
 

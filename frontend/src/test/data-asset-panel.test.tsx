@@ -108,6 +108,30 @@ vi.mock("../lib/api", () => ({
   keepLearningSuggestion: vi.fn().mockResolvedValue({}),
   rollbackLearningSuggestion: vi.fn().mockResolvedValue({}),
   decideLearningSuggestion: vi.fn().mockResolvedValue({}),
+  getMaterialAnalyses: vi.fn().mockResolvedValue([
+    {
+      id: "ma1",
+      date: "2026-10-29",
+      material_actions: [
+        {
+          key: "m1:replicate_winner",
+          material_id: "m1",
+          material_name: "高 ROI 素材",
+          action_type: "replicate_winner",
+          title: "复刻高 ROI 素材",
+          reason: "ROI 达标",
+          baseline: { roi: 3.2, spend: 3000 },
+          success_criteria: { roi_min: 2.5 },
+          stop_condition: "ROI 低于基线"
+        }
+      ]
+    }
+  ]),
+  getMaterialExperiments: vi.fn().mockResolvedValue([]),
+  createMaterialExperiment: vi.fn().mockResolvedValue({}),
+  startMaterialExperiment: vi.fn().mockResolvedValue({}),
+  evaluateMaterialExperiment: vi.fn().mockResolvedValue({}),
+  stopMaterialExperiment: vi.fn().mockResolvedValue({}),
   getExecutionFeedback: vi.fn().mockResolvedValue([
     {
       execution_job_id: "job-12345678",
@@ -146,4 +170,6 @@ test("数据资产窗口：展示操作反馈 + 流速分层 + 因果声明", as
   expect(await screen.findByText("阈值调整")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("tab", { name: "执行回流" }));
   expect(await screen.findByText("候选关联")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("tab", { name: "素材实验" }));
+  expect(await screen.findByText("复刻高 ROI 素材")).toBeInTheDocument();
 });
