@@ -1,5 +1,37 @@
 const API_BASE = "http://127.0.0.1:8000";
 
+// 连接状态有多个组件会定时读取；短缓存 + in-flight 去重，避免同一时刻打多份请求。
+const getCache = new Map<string, { at: number; value: unknown }>();
+const getInFlight = new Map<string, Promise<unknown>>();
+
+async function cachedGet<T>(path: string, ttlMs = 20_000): Promise<T> {
+  const now = Date.now();
+  const cached = getCache.get(path);
+  if (cached && now - cached.at < ttlMs) return cached.value as T;
+  const pending = getInFlight.get(path);
+  if (pending) return pending as Promise<T>;
+  const request = fetch(`${API_BASE}${path}`)
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`Failed to load ${path}`);
+      const value = (await response.json()) as T;
+      getCache.set(path, { at: Date.now(), value });
+      return value;
+    })
+    .finally(() => getInFlight.delete(path));
+  getInFlight.set(path, request);
+  return request;
+}
+
+function clearGetCache(...paths: string[]): void {
+  if (!paths.length) { getCache.clear(); return; }
+  paths.forEach((path) => getCache.delete(path));
+}
+
+export function clearApiGetCacheForTests(): void {
+  clearGetCache();
+  getInFlight.clear();
+}
+
 export async function getActiveProfile() {
   const response = await fetch(`${API_BASE}/api/profiles/active`);
   if (!response.ok) throw new Error("Failed to load strategy profile");
@@ -221,9 +253,7 @@ export type ApiConnectionConfig = {
 };
 
 export async function getApiConnectionStatus(): Promise<ApiConnectionStatus> {
-  const response = await fetch(`${API_BASE}/api/api-connection/status`);
-  if (!response.ok) throw new Error("Failed to load API connection status");
-  return response.json();
+  return cachedGet<ApiConnectionStatus>("/api/api-connection/status");
 }
 
 export async function saveApiConnection(
@@ -235,6 +265,7 @@ export async function saveApiConnection(
     body: JSON.stringify(config)
   });
   if (!response.ok) throw new Error("Failed to save API connection");
+  clearGetCache("/api/api-connection/status");
   return response.json();
 }
 
@@ -541,9 +572,7 @@ export async function resumeLiveWatch(): Promise<LiveWatchStatus> {
 }
 
 export async function getCdpConnection(): Promise<CdpConnectionStatus> {
-  const response = await fetch(`${API_BASE}/api/live-watch/connection`);
-  if (!response.ok) throw new Error("Failed to load data source status");
-  return response.json();
+  return cachedGet<CdpConnectionStatus>("/api/live-watch/connection");
 }
 
 export async function connectCdp(
@@ -554,6 +583,7 @@ export async function connectCdp(
     { method: "POST" }
   );
   if (!response.ok) throw new Error("Failed to connect data source");
+  clearGetCache("/api/live-watch/connection", "/api/api-connection/status");
   return response.json();
 }
 
@@ -631,9 +661,7 @@ export type LocalConfig = {
 };
 
 export async function getLocalConfig(): Promise<LocalConfig> {
-  const response = await fetch(`${API_BASE}/api/local-config`);
-  if (!response.ok) throw new Error("Failed to load local config");
-  return response.json();
+  return cachedGet<LocalConfig>("/api/local-config");
 }
 
 export async function saveLocalConfig(patch: {
@@ -646,5 +674,6 @@ export async function saveLocalConfig(patch: {
     body: JSON.stringify(patch)
   });
   if (!response.ok) throw new Error("Failed to save local config");
+  clearGetCache("/api/local-config");
   return response.json();
 }
