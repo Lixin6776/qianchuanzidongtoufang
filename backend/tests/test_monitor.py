@@ -140,3 +140,43 @@ async def test_ended_tick_notifies_review_only_once(tmp_path):
 
     assert len(notified) == 1          # 只通知第一次
     assert notified[0]["date"] == "2026-10-12"
+
+
+def test_spend_delta_resets_on_new_live_session(monitor_service):
+    from app.services.analytics import AnalyticsService
+
+    old = MetricSnapshot(
+        captured_at="2026-10-29T20:00:00+08:00",
+        live_started_at="2026-10-29T05:59:48+08:00",
+        freshness="fresh",
+        plan_status="active",
+        plan_budget=1000,
+        spend=107524.35,
+        gmv=219000,
+        orders=600,
+        views=12000,
+        online_viewers=50,
+        roi=2.04,
+        gpm=3500,
+    )
+    new = MetricSnapshot(
+        captured_at="2026-10-30T11:07:02+08:00",
+        live_started_at="2026-10-30T06:00:29+08:00",
+        freshness="fresh",
+        plan_status="active",
+        plan_budget=1000,
+        spend=23576.76,
+        gmv=45000,
+        orders=150,
+        views=4000,
+        online_viewers=40,
+        roi=1.94,
+        gpm=3750,
+    )
+    monitor_service._previous_metrics = AnalyticsService().compute(old)
+    monitor_service._previous_captured_at = old.captured_at
+    monitor_service._previous_live_started = old.live_started_at
+
+    event = monitor_service.build_event(SnapshotReading(snapshot=new, source="cdp"))
+    assert event.spend_delta is None
+    assert event.minutes_since_previous is None

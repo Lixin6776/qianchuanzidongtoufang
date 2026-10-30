@@ -62,6 +62,7 @@ class _MonitorCore:
         self.detector = ChangeDetector()
         self._previous_metrics: ComputedMetrics | None = None
         self._previous_captured_at: datetime | None = None
+        self._previous_live_started: datetime | None = None
         self._previous_plan_status: str | None = None
         self.review_store = None
         self.review_notifier = review_notifier
@@ -82,16 +83,28 @@ class _MonitorCore:
         stale = snapshot.freshness != "fresh" or bool(reading.error)
         spend_delta = None
         minutes_since_previous = None
-        if self._previous_metrics is not None:
+        current_session = snapshot.live_started_at
+        session_changed = bool(
+            self._previous_metrics is not None
+            and current_session is not None
+            and self._previous_live_started != current_session
+        )
+        if self._previous_metrics is not None and not session_changed:
             spend_delta = metrics.spend - self._previous_metrics.spend
-            if self._previous_captured_at is not None:
+            if self._previous_captured_at is not None and spend_delta >= 0:
                 elapsed = snapshot.captured_at - self._previous_captured_at
                 minutes_since_previous = max(0.0, elapsed.total_seconds() / 60)
-        previous = self._previous_metrics or metrics
+        # 累计消耗突然变小通常意味着换场或数据回滚；不能把负差值当作近5分钟消耗。
+        if spend_delta is not None and spend_delta < 0:
+            spend_delta = None
+            minutes_since_previous = None
+            session_changed = True
+        previous = metrics if session_changed else (self._previous_metrics or metrics)
         signal = self.detector.evaluate(metrics, previous, stale=stale)
         if not stale:
             self._previous_metrics = metrics
             self._previous_captured_at = snapshot.captured_at
+            self._previous_live_started = current_session
         profile = self._profile_provider()
         reason = signal.reason
         if reading.error:
