@@ -169,6 +169,9 @@ export function OpsOutcomePanel({ data: initialData }: { data?: OpsOutcomePayloa
     <section className="ops-outcome">
       <h4>操作反馈表（近 {data.window_minutes} 分钟）</h4>
       <p className="monitor-signal">
+        数据来源：千川平台操作日志（包含人工操作，不依赖工具执行）。
+      </p>
+      <p className="monitor-signal">
         基线（无操作时刻）中位Δ <strong>{signed(data.baseline.median_delta)}</strong>
         （n={data.baseline.n}）。净效应 = 操作组 − 这个基线，已扣掉账户自然漂移。
       </p>

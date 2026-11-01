@@ -175,7 +175,7 @@ export function StrategyLifecyclePanel() {
                 <span className={`verdict-badge verdict-${suggestion.status}`}>{STATUS_LABEL[suggestion.status] ?? suggestion.status}</span>
               </header>
               <ChangeList value={suggestion.proposed_change} />
-              <p className="monitor-signal">证据样本：{String(suggestion.evidence?.sample_size ?? "未提供")} · 创建于 {new Date(suggestion.created_at).toLocaleString("zh-CN")}</p>
+              <p className="monitor-signal">数据来源：{String(suggestion.evidence?.source === "ops_outcome" ? "千川平台操作日志（人工操作）" : suggestion.evidence?.source ?? "未提供")} · 证据样本：{String(suggestion.evidence?.sample_size ?? "未提供")} · 创建于 {new Date(suggestion.created_at).toLocaleString("zh-CN")}</p>
               {evaluation ? (
                 <section className="strategy-evaluation">
                   <div><strong>评估结果：{VERDICT_LABEL[evaluation.verdict] ?? evaluation.verdict}</strong><span>样本 {evaluation.sample_size} · 效果值 {evaluation.effect_size === null ? "--" : evaluation.effect_size.toFixed(2)}</span></div>

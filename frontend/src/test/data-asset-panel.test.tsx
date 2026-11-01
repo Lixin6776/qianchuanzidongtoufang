@@ -96,7 +96,7 @@ vi.mock("../lib/api", () => ({
       strategy_profile_version: 1,
       suggestion_type: "阈值调整",
       proposed_change: { roi_floor_delta: 0.1 },
-      evidence: { sample_size: 24 },
+      evidence: { sample_size: 24, source: "ops_outcome" },
       confidence: "high",
       status: "proposed",
       created_at: "2026-10-29T08:00:00+08:00"
@@ -161,6 +161,7 @@ test("数据资产窗口：展示操作反馈 + 流速分层 + 因果声明", as
 
   fireEvent.click(screen.getByRole("tab", { name: "操作反馈" }));
   expect(await screen.findByText("操作反馈表（近 10 分钟）")).toBeInTheDocument();
+  expect(screen.getAllByText(/千川平台操作日志/).length).toBeGreaterThan(0);
   expect(screen.getByText("按流速分层（更有用的切法）")).toBeInTheDocument();
   expect(screen.getByText("加素材")).toBeInTheDocument();
 
