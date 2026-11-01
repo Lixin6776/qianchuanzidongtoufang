@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import StrategyEvaluation, StrategyProfile, StrategySuggestion
@@ -54,3 +55,89 @@ class SuggestionEngine:
             self.session.commit()
             self.session.refresh(suggestion)
         return suggestion
+    def propose_from_outcome(
+        self,
+        outcome: dict,
+        profile: StrategyProfile,
+    ) -> list[StrategySuggestion]:
+        """把操作净效应转换成可进入生命周期管理的策略建议。"""
+        if self.session is None:
+            return []
+        existing = list(
+            self.session.scalars(
+                select(StrategySuggestion).where(
+                    StrategySuggestion.strategy_profile_version == profile.version
+                )
+            )
+        )
+        blocked = {
+            (item.evidence or {}).get("operation")
+            for item in existing
+            if (item.evidence or {}).get("source") == "ops_outcome"
+            and item.status in {"proposed", "accepted", "active", "evaluated", "kept"}
+        }
+        created: list[StrategySuggestion] = []
+        for row in outcome.get("operations", []):
+            operation = str(row.get("operation") or "")
+            verdict = str(row.get("verdict") or "")
+            sample_size = int(row.get("n") or 0)
+            if not operation or sample_size < 20:
+                continue
+            if verdict in {"positive", "beneficial"}:
+                direction = "prefer"
+            elif verdict in {"negative", "harmful"}:
+                direction = "de_prioritize"
+            else:
+                continue
+            if operation in blocked:
+                continue
+            effect = float(row.get("net_effect") or 0)
+            evaluation = StrategyEvaluation(
+                id=str(uuid.uuid4()),
+                case_id=None,
+                strategy_profile_id=profile.id,
+                sample_size=sample_size,
+                effect_size=round(effect, 4),
+                confidence="high",
+                verdict=verdict,
+                evidence={
+                    "source": "ops_outcome",
+                    "operation": operation,
+                    "median_delta": row.get("median_delta"),
+                    "positive_rate": row.get("positive_rate"),
+                    "observation_only": True,
+                },
+                created_at=datetime.now(UTC),
+            )
+            self.session.add(evaluation)
+            self.session.flush()
+            suggestion = StrategySuggestion(
+                id=str(uuid.uuid4()),
+                strategy_profile_version=profile.version,
+                suggestion_type="action_priority",
+                proposed_change={
+                    "operation": operation,
+                    "direction": direction,
+                    "sample_size": sample_size,
+                    "net_effect": round(effect, 4),
+                },
+                evidence={
+                    "source": "ops_outcome",
+                    "operation": operation,
+                    "sample_size": sample_size,
+                    "effect_size": round(effect, 4),
+                    "counterexamples": None,
+                    "evaluation_id": evaluation.id,
+                    "observation_only": True,
+                },
+                confidence="high",
+                status="proposed",
+                created_at=datetime.now(UTC),
+            )
+            self.session.add(suggestion)
+            created.append(suggestion)
+            blocked.add(operation)
+        self.session.commit()
+        for item in created:
+            self.session.refresh(item)
+        return created

@@ -20,8 +20,9 @@ from app.schemas import (
 )
 from app.services.evaluation import StrategyEvaluationService
 from app.services.execution_feedback import ExecutionFeedbackService
-from app.services.ops_outcome import compute_op_cases
+from app.services.ops_outcome import compute_op_cases, compute_ops_outcome
 from app.services.profiles import StrategyProfileService
+from app.services.suggestions import SuggestionEngine
 
 router = APIRouter(prefix="/api/learning", tags=["learning"])
 
@@ -62,6 +63,18 @@ def list_suggestions(db: Annotated[Session, Depends(get_db)]):
     return list(
         db.scalars(select(StrategySuggestion).order_by(StrategySuggestion.created_at.desc()))
     )
+
+
+@router.post("/suggestions/generate", response_model=list[StrategySuggestionRead])
+def generate_suggestions(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """从当前操作净效应生成策略建议；不满足样本门槛的动作不会生成。"""
+    logs = request.app.state.live_watch_service.store.list_analysis_logs(limit=20000)
+    outcome = compute_ops_outcome(logs)
+    profile = StrategyProfileService(db).get_active()
+    return SuggestionEngine(db).propose_from_outcome(outcome, profile)
 
 
 @router.post("/suggestions/{suggestion_id}/accept", response_model=StrategySuggestionRead)

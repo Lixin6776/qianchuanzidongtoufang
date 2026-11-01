@@ -179,3 +179,30 @@ def test_keep_requires_actionable_evaluation(client, profile, db_session):
     kept = client.post("/api/learning/suggestions/s6/keep", json={"reason": "观察期正向"})
     assert kept.status_code == 200
     assert kept.json()["status"] == "kept"
+
+
+def test_generate_suggestions_endpoint_uses_operation_outcome(client, profile, monkeypatch):
+    import app.api.learning as learning_api
+
+    monkeypatch.setattr(
+        learning_api,
+        "compute_ops_outcome",
+        lambda logs: {
+            "operations": [
+                {
+                    "operation": "一键起量",
+                    "n": 29,
+                    "median_delta": 0.53,
+                    "net_effect": 0.51,
+                    "positive_rate": 0.76,
+                    "verdict": "positive",
+                }
+            ]
+        },
+    )
+    response = client.post("/api/learning/suggestions/generate")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["evidence"]["source"] == "ops_outcome"
+    assert body[0]["proposed_change"]["direction"] == "prefer"

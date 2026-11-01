@@ -39,3 +39,40 @@ def test_strong_evidence_creates_proposed_change(strong_evaluation, profile):
     assert suggestion.status == "proposed"
     assert suggestion.proposed_change
     assert suggestion.evidence["sample_size"] >= 20
+
+def test_operation_outcome_generates_evaluation_and_suggestion(db_session, profile):
+    from app.models import StrategyEvaluation, StrategySuggestion
+
+    result = SuggestionEngine(db_session).propose_from_outcome(
+        {
+            "operations": [
+                {
+                    "operation": "一键起量",
+                    "n": 29,
+                    "median_delta": 0.53,
+                    "net_effect": 0.51,
+                    "positive_rate": 0.76,
+                    "verdict": "positive",
+                },
+                {
+                    "operation": "抢首屏",
+                    "n": 6,
+                    "net_effect": -0.2,
+                    "verdict": "insufficient",
+                },
+            ]
+        },
+        profile,
+    )
+
+    assert len(result) == 1
+    suggestion = result[0]
+    assert suggestion.status == "proposed"
+    assert suggestion.evidence["source"] == "ops_outcome"
+    assert suggestion.evidence["operation"] == "一键起量"
+    assert suggestion.proposed_change["direction"] == "prefer"
+    evaluation = db_session.get(StrategyEvaluation, suggestion.evidence["evaluation_id"])
+    assert evaluation is not None
+    assert evaluation.verdict == "positive"
+    assert evaluation.effect_size == 0.51
+    assert db_session.query(StrategySuggestion).count() == 1

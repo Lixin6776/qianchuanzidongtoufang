@@ -154,6 +154,12 @@ export async function getLearningSuggestions() {
   return response.json();
 }
 
+export async function generateLearningSuggestions() {
+  const response = await fetch(`${API_BASE}/api/learning/suggestions/generate`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to generate suggestions");
+  return response.json();
+}
+
 export async function decideLearningSuggestion(id: string, decision: "accept" | "reject", reason = "") {
   const response = await fetch(`${API_BASE}/api/learning/suggestions/${id}/${decision}`, {
     method: "POST",

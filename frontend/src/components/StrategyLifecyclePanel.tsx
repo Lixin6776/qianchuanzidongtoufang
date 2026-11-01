@@ -6,6 +6,7 @@ import {
   evaluateLearningSuggestion,
   getLearningEvaluations,
   getLearningSuggestions,
+  generateLearningSuggestions,
   keepLearningSuggestion,
   rollbackLearningSuggestion
 } from "../lib/api";
@@ -74,6 +75,7 @@ export function StrategyLifecyclePanel() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -102,6 +104,19 @@ export function StrategyLifecyclePanel() {
     };
   }, []);
 
+  async function generate() {
+    setGenerating(true);
+    setError("");
+    try {
+      await generateLearningSuggestions();
+      await refresh();
+    } catch {
+      setError("生成建议失败，请确认数据资产已有足够样本。 ");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function runAction(id: string, action: () => Promise<unknown>) {
     setBusyId(id);
     setError("");
@@ -119,17 +134,31 @@ export function StrategyLifecyclePanel() {
     return <div className="module-loading"><span className="module-spinner" aria-hidden="true" />正在读取策略建议…</div>;
   }
 
+  const generateButton = (
+    <div className="module-toolbar">
+      <div><strong>从数据资产生成策略建议</strong><span>只把样本足够的正向/负向操作转成建议，不自动激活。</span></div>
+      <button className="button-outline" type="button" disabled={generating} onClick={() => void generate()}>
+        {generating ? "生成中…" : "生成建议"}
+      </button>
+    </div>
+  );
+
   if (!suggestions.length) {
     return (
-      <div className="module-empty-state">
-        <strong>暂无策略建议</strong>
-        <span>当数据资产积累到足够样本后，策略建议会出现在这里。</span>
+      <div className="module-stack">
+        {generateButton}
+        {error ? <div className="module-error">{error}</div> : null}
+        <div className="module-empty-state">
+          <strong>暂无策略建议</strong>
+          <span>点击“生成建议”，系统会从当前操作净效应中筛选样本足够的动作。</span>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="module-stack">
+      {generateButton}
       {error ? <div className="module-error">{error}</div> : null}
       <div className="strategy-list">
         {suggestions.map((suggestion) => {
