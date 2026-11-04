@@ -1388,6 +1388,7 @@ class LiveWatchService:
         self._last_live_started: datetime | None = None
         self._recent_spends: list[float] = []
         self._stagnant_ticks = 0
+        self._not_live_confirmations = 0
         # 最后一次看到"消耗增长"的时间 —— 用来兜底判断本场是否已结束
         self._last_spend_value = 0.0
         self._last_spend_growth_at: datetime | None = None
@@ -1723,6 +1724,7 @@ class LiveWatchService:
                 is_stagnant = True
             else:
                 self._stagnant_ticks = 0
+                self._not_live_confirmations = 0
         if is_stagnant and self.snapshot_refresher is not None:
             # 自检：先别急着判"消耗停滞"，真的去刷新一次页面再读，看是不是我们读了缓存
             try:
@@ -1739,6 +1741,7 @@ class LiveWatchService:
                     spend_now = fresh_spend
                     is_stagnant = False
                     self._stagnant_ticks = 0
+                    self._not_live_confirmations = 0
                     self._recent_spends[-1] = spend_now
                     event.reason = (
                         f"自检：发现读数未变化，已自动刷新大屏并取到新值"
@@ -1753,12 +1756,20 @@ class LiveWatchService:
             except Exception:  # noqa: BLE001
                 state = "unknown"
             if state == "not-live":
-                event.plan_status = "ended"
-                audit_notes.append(
-                    "确认本场已结束：消耗连续不动、刷新大屏也没变化，"
-                    "投放管理页显示当前没有在播场次 —— 按收场快照处理，"
-                    "并会为本场生成复盘"
-                )
+                self._not_live_confirmations += 1
+                if self._not_live_confirmations >= 2:
+                    event.plan_status = "ended"
+                    audit_notes.append(
+                        "二次确认本场已结束：消耗连续不动、刷新大屏也没变化，"
+                        "投放管理页连续两轮显示没有在播场次 —— 按收场快照处理，"
+                        "并会为本场生成复盘"
+                    )
+                else:
+                    audit_notes.append(
+                        "第一次读到当前没有在播场次；为避免页面抖动误停，等待下一轮二次确认"
+                    )
+            else:
+                self._not_live_confirmations = 0
         # 读失败时 event.live_started_at 会是 None；再回退到"本进程上次成功读到的"
         # 以及"持久化状态里的场次开始时间" —— 否则重启后遇到读失败，
         # 结束判定会因为没有场次开始时间而永远不触发。

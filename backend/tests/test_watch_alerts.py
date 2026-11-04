@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """盯盘异常告警：读不到数据 / 数据停滞要主动告警，但同类问题不能每 5 分钟刷屏。"""
 
 import asyncio
@@ -380,7 +379,6 @@ def test_zero_spend_stagnation_marks_session_ended(tmp_path):
     """直播结束后大屏常读到 spend=0 —— 不能因为 0 就永远判不出结束。"""
     from datetime import UTC, datetime
 
-    from app.services.monitor import MonitorEvent
 
     started = datetime(2026, 10, 10, 6, 0, tzinfo=UTC)
     event = _ended_probe_event(0.0, started)
@@ -401,7 +399,7 @@ def test_zero_spend_stagnation_marks_session_ended(tmp_path):
     )
 
     report = None
-    for _ in range(3):
+    for _ in range(4):
         report = asyncio.run(service.tick_once())
 
     assert report is not None
@@ -432,3 +430,35 @@ def test_long_session_without_spend_growth_marks_ended(tmp_path):
     report = asyncio.run(service.tick_once())
     assert report is not None
     assert service._pending_stop_reason
+
+
+def test_single_not_live_signal_does_not_end_session(tmp_path):
+    """页面短暂读成未在播时，必须等待下一轮二次确认。"""
+    from datetime import UTC, datetime
+
+    started = datetime(2026, 11, 4, 6, 0, tzinfo=UTC)
+    event = _ended_probe_event(5000.0, started)
+    calls = {"n": 0}
+
+    class _Monitor:
+        def tick(self):
+            return event
+
+    async def flaky_state():
+        calls["n"] += 1
+        return "not-live" if calls["n"] == 1 else "live"
+
+    service = LiveWatchService(
+        _Monitor(),
+        _Hub(),
+        store=SqliteWatchLogStore(tmp_path / "w.sqlite3", tmp_path / "none.json"),
+        session_state_provider=flaky_state,
+        state_path=tmp_path / "state.json",
+    )
+
+    for _ in range(3):
+        asyncio.run(service.tick_once())
+    assert not service._pending_stop_reason
+
+    asyncio.run(service.tick_once())
+    assert not service._pending_stop_reason
