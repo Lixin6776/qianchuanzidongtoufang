@@ -366,24 +366,24 @@ export function LiveStatusCard({
         : isStale
           ? "先检查数据源连接或点击「立即读取一次」；恢复前不要根据这组数据做投放动作。"
           : adjustment || "暂无调整建议，继续观察下一周期";
-  const summaryTitle = sessionMismatch
-    ? "场次不一致，暂停实时判断"
-    : isEnded
-      ? "直播已结束，停止实时判断"
-      : watchStopped
-        ? "盯盘已停止，不再判断实时状态"
-        : qualityStatus === "unconfirmed"
-          ? "场次待确认，不计算本场均值"
-          : qualityStatus === "invalid"
-            ? "数据源异常，暂停实时判断"
-            : isStale
-              ? "数据已过期，暂停实时判断"
-              : qualityStatus === "partial"
-                ? "字段不完整，结论需要降级"
-                : problem || error
-                  ? `发现 ${report?.problems?.filter((item) => item.trim()).length ?? 1} 项问题`
-                  : "本周期未发现异常";
   const actionText = adjustment || "";
+  const reportPriorities = (report?.priority_actions ?? [])
+    .filter((item) => item.problem?.trim() && item.action?.trim())
+    .slice(0, 3);
+  const priorityActions =
+    reportPriorities.length > 0
+      ? reportPriorities
+      : actionText
+        ? [
+            {
+              rank: 1,
+              severity: report?.level === "action" ? "high" : "medium",
+              problem: problem || "当前周期异常",
+              action: actionText,
+              verify_minutes: 10
+            }
+          ]
+        : [];
   const taskDueText = createdTask?.due_at
     ? new Date(createdTask.due_at).toLocaleTimeString("zh-CN", {
         hour: "2-digit",
@@ -391,7 +391,9 @@ export function LiveStatusCard({
       })
     : "";
   const canCreateTask =
-    Boolean(report?.id && actionText) && !snapshotOnly && qualityStatus !== "partial";
+    Boolean(report?.id && priorityActions.length) &&
+    !snapshotOnly &&
+    qualityStatus !== "partial";
 
   async function handleCreateTask() {
     if (!report?.id || !canCreateTask || taskBusy) return;
@@ -407,6 +409,29 @@ export function LiveStatusCard({
     }
   }
 
+  const summaryTitle = sessionMismatch
+    ? "场次不一致，暂停实时判断"
+    : isEnded
+      ? "直播已结束，停止实时判断"
+      : watchStopped
+        ? "盯盘已停止，不再判断实时状态"
+        : qualityStatus === "unconfirmed"
+          ? "场次待确认，不计算本场均值"
+          : qualityStatus === "invalid"
+            ? "数据源异常，暂停实时判断"
+            : isStale
+              ? "数据已过期，暂停实时判断"
+              : qualityStatus === "partial"
+                ? "字段不完整，结论需要降级"
+                : problem || error
+                  ? (() => {
+                      const totalProblems =
+                        report?.problems?.filter((item) => item.trim()).length ?? 1;
+                      return totalProblems > priorityActions.length
+                        ? `发现 ${totalProblems} 项问题，已收敛为 ${priorityActions.length} 项优先处理`
+                        : `发现 ${totalProblems} 项问题`;
+                    })()
+                  : "本周期未发现异常";
   const observedLabel = sessionMismatch
     ? "最后数据"
     : isEnded
@@ -481,13 +506,43 @@ export function LiveStatusCard({
         </div>
       ) : null}
 
-      {report ? (
-        <div className="live-action-loop" aria-label="本轮决策闭环">
-          <div className="live-action-copy">
-            <span>本轮优先动作</span>
-            <strong>{actionText || "暂无明确动作，继续观察下一周期"}</strong>
+      {report && priorityActions.length > 0 ? (
+        <section className="live-priority-board" aria-label="本轮决策闭环">
+          <header className="live-priority-head">
+            <div>
+              <span>异常收敛</span>
+              <strong>本轮先做 {priorityActions.length} 件事</strong>
+            </div>
+            <small>只保留最高优先级问题；每项只配一个动作和验证窗口。</small>
+          </header>
+          <div className="live-priority-list">
+            {priorityActions.map((item, index) => (
+              <article
+                className={`live-priority-item live-priority-${item.severity}`}
+                key={`${item.rank}-${item.problem}`}
+              >
+                <span className="live-priority-rank">P{item.rank}</span>
+                <div className="live-priority-copy">
+                  <strong>{item.problem}</strong>
+                  <p>{item.action}</p>
+                </div>
+                <em>{item.verify_minutes} 分钟验证</em>
+                {index === 0 ? (
+                  <button
+                    className="button-primary"
+                    type="button"
+                    disabled={!canCreateTask || taskBusy || Boolean(createdTask)}
+                    onClick={() => void handleCreateTask()}
+                  >
+                    {taskBusy ? "创建中" : createdTask ? "已生成任务" : "生成 10 分钟验证任务"}
+                  </button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+          <footer className="live-priority-foot">
             <small>
-              生成任务后会保存动作前基线，并在 10 / 30 分钟核对数据；执行仍由你人工确认。
+              生成任务会保存动作前基线，并在 10 / 30 分钟核对数据；执行仍由你人工确认。
             </small>
             {createdTask ? (
               <em className="live-action-success" aria-live="polite">
@@ -495,16 +550,8 @@ export function LiveStatusCard({
               </em>
             ) : null}
             {taskError ? <em className="live-action-error">{taskError}</em> : null}
-          </div>
-          <button
-            className="button-primary"
-            type="button"
-            disabled={!canCreateTask || taskBusy || Boolean(createdTask)}
-            onClick={() => void handleCreateTask()}
-          >
-            {taskBusy ? "创建中" : createdTask ? "已生成任务" : "生成 10 分钟验证任务"}
-          </button>
-        </div>
+          </footer>
+        </section>
       ) : null}
 
       <details className="live-status-diagnostics">

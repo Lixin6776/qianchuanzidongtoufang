@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
+from app.services.decision_loop import build_priority_actions
 from app.services.diagnosis import diagnose
 from app.services.monitor import MonitorEvent
 from app.services.self_check import render_self_check, self_check, verify_data
@@ -1098,6 +1099,12 @@ def build_watch_report(
             metrics, baselines, len(history)
         )
         problems = problems + baseline_issues
+    priority_actions = build_priority_actions(
+        problems,
+        adjustments,
+        data_quality,
+        level=event.level,
+    )
     # 注意：投放管理页的「基础 vs 整体」是【当日累计】口径，和直播大屏的
     # 【当前场次】口径不同，直接放进同一张报表会自相矛盾。这里不再渲染它，
     # 场次口径的基础/追投拆分统一由「投放结构拆分」区块输出（见下方）。
@@ -1168,6 +1175,15 @@ def build_watch_report(
     lines.append(f"| 平均在线人数（本场） | {average_online_text} |")
     lines.append(f"| 成交订单数 | {metrics.orders} |")
     lines.append("")
+    if priority_actions:
+        lines.append("### 本轮优先处理（最多 3 项）")
+        lines.append("")
+        for item in priority_actions:
+            lines.append(
+                f"{item['rank']}. **{item['problem']}** → {item['action']}"
+                f"（{item['verify_minutes']} 分钟验证）"
+            )
+        lines.append("")
     if split_section:
         lines.append(split_section)
         lines.append("")
@@ -1327,6 +1343,7 @@ def build_watch_report(
             "spend_split": split,
             "problems": [],
             "adjustments": [],
+            "priority_actions": priority_actions,
             "operations": operations,
             "report_markdown": "\n".join(lines),
             "note": getattr(event, "reason", ""),
@@ -1510,6 +1527,7 @@ def build_watch_report(
         "spend_split": split,
         "problems": problems,
         "adjustments": adjustments,
+        "priority_actions": priority_actions,
         # 注意区分两个"操作"：
         #   operations          = 工具自己执行的操作（只读模式恒为空）
         #   platform_operations = 千川平台日志里「你手动做的操作」（结构化保存）

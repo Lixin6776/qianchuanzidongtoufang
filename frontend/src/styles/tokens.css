@@ -2025,6 +2025,107 @@ body {
   border-radius: 0 0 9px 9px;
 }
 
+/* Priority board: at most three exceptions, one action each */
+.live-priority-board {
+  margin-top: 10px;
+  padding: 10px 12px 11px;
+  border: 1px solid rgba(56, 139, 253, 0.23);
+  border-radius: 10px;
+  background:
+    linear-gradient(120deg, rgba(37, 99, 235, 0.1), rgba(34, 211, 238, 0.035)),
+    rgba(255, 255, 255, 0.025);
+}
+.live-priority-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+.live-priority-head > div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.live-priority-head span {
+  color: #7fb9ff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.live-priority-head strong { color: #eaf4ff; font-size: 13px; }
+.live-priority-head small { color: #8299ba; font-size: 11px; }
+.live-priority-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.live-priority-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 9px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(126, 157, 199, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.038);
+}
+.live-priority-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  border-radius: 5px;
+  background: rgba(148, 163, 184, 0.13);
+  color: #c0d0e6;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+.live-priority-critical .live-priority-rank { background: rgba(244, 63, 94, 0.16); color: #ff9aaa; }
+.live-priority-high .live-priority-rank { background: rgba(245, 158, 11, 0.16); color: #ffd17a; }
+.live-priority-medium .live-priority-rank { background: rgba(56, 139, 253, 0.15); color: #8fc2ff; }
+.live-priority-copy { min-width: 0; }
+.live-priority-copy strong {
+  display: block;
+  color: #e5effc;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.live-priority-copy p {
+  margin: 3px 0 0;
+  color: #9fb4d2;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.live-priority-item > em {
+  grid-column: 2;
+  color: #748daf;
+  font-size: 10px;
+  font-style: normal;
+}
+.live-priority-item > button {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 2px;
+}
+.live-priority-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  color: #849bbd;
+  font-size: 11px;
+}
+@media (max-width: 1080px) {
+  .live-priority-list { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .live-priority-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+}
+
 /* Decision loop: one prioritized action with an explicit verification task */
 .live-action-loop {
   display: flex;

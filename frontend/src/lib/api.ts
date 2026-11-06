@@ -532,6 +532,14 @@ export type CdpConnectionStatus = {
   message?: string;
 };
 
+export type LivePriorityAction = {
+  rank: number;
+  severity: "critical" | "high" | "medium" | "low" | string;
+  problem: string;
+  action: string;
+  verify_minutes: number;
+};
+
 export type LiveWatchDataQuality = {
   status: "good" | "partial" | "stale" | "unconfirmed" | "invalid";
   label?: string;
@@ -582,6 +590,7 @@ export type LiveWatchReport = {
   verify_passed?: boolean | null;
   problems: string[];
   adjustments: string[];
+  priority_actions?: LivePriorityAction[];
   operations: Array<{
     job_id: string;
     action_name: string;

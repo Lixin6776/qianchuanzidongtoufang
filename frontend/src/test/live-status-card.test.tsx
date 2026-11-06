@@ -43,6 +43,36 @@ const report: LiveWatchReport = {
   verify_passed: true,
   problems: ["综合营销 ROI 未达标：当前 2.19，目标 2.80，缺口 0.61"],
   adjustments: ["先收缩低效素材，10～20 分钟后复核 ROI"],
+  priority_actions: [
+    {
+      rank: 1,
+      severity: "high",
+      problem: "综合营销 ROI 未达标",
+      action: "先收缩低效素材，10～20 分钟后复核 ROI",
+      verify_minutes: 10
+    },
+    {
+      rank: 2,
+      severity: "medium",
+      problem: "GPM 低于本账户基线",
+      action: "先核对承接话术，10 分钟后复核 GPM",
+      verify_minutes: 10
+    },
+    {
+      rank: 3,
+      severity: "medium",
+      problem: "素材消耗集中度过高",
+      action: "补充一条测试素材，观察消耗集中度",
+      verify_minutes: 10
+    },
+    {
+      rank: 4,
+      severity: "low",
+      problem: "这条不应出现在首页",
+      action: "这条也不应出现",
+      verify_minutes: 30
+    }
+  ],
   operations: [],
   report_markdown: "## 直播盯盘报表"
 };
@@ -70,7 +100,7 @@ test("live status card surfaces the latest room and operator metrics", () => {
   expect(screen.getByText("字段 7/7")).toBeInTheDocument();
   expect(screen.getByText("新鲜度 新鲜")).toBeInTheDocument();
   expect(screen.getByText("场次 已确认")).toBeInTheDocument();
-  expect(screen.getByText(/综合营销 ROI 未达标/)).toBeInTheDocument();
+  expect(screen.getAllByText(/综合营销 ROI 未达标/).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/先收缩低效素材/).length).toBeGreaterThan(0);
 });
 test("ended live shows the final snapshot and stops polling", async () => {
@@ -267,4 +297,16 @@ test("creates a 10-minute verification task from the current report", async () =
 
   await waitFor(() => expect(createTask).toHaveBeenCalledWith("watch-1"));
   await waitFor(() => expect(screen.getByText(/已生成验证任务/)).toBeInTheDocument());
+});
+
+test("priority board shows at most three unique actions", () => {
+  render(<LiveStatusCard report={report} refreshMs={0} />);
+
+  expect(screen.getByText("本轮先做 3 件事")).toBeInTheDocument();
+  expect(screen.getByText("综合营销 ROI 未达标")).toBeInTheDocument();
+  expect(screen.getAllByText("先收缩低效素材，10～20 分钟后复核 ROI").length).toBeGreaterThan(0);
+  expect(screen.getByText("GPM 低于本账户基线")).toBeInTheDocument();
+  expect(screen.getByText("先核对承接话术，10 分钟后复核 GPM")).toBeInTheDocument();
+  expect(screen.getByText("素材消耗集中度过高")).toBeInTheDocument();
+  expect(screen.queryByText("这条不应出现在首页")).not.toBeInTheDocument();
 });

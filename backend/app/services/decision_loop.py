@@ -33,6 +33,127 @@ def _short(value: Any, limit: int = 90) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
+def _priority_severity(problem: str, index: int, level: str) -> str:
+    if any(
+        keyword in problem
+        for keyword in ("数据", "读取失败", "场次", "未通过", "停滞", "来源")
+    ):
+        return "critical"
+    if any(
+        keyword in problem
+        for keyword in ("ROI", "GPM", "消耗", "预算", "素材", "在线", "成交", "CPM")
+    ):
+        return "high"
+    return "high" if index == 0 and level == "action" else "medium"
+
+
+def _problem_category(problem: str) -> str:
+    upper = problem.upper()
+    if "ROI" in upper:
+        return "roi"
+    if "追投" in problem or "调控" in problem:
+        return "assist"
+    if "素材" in problem or "低效" in problem:
+        return "material"
+    if "GPM" in upper or "在线" in problem or "承接" in problem:
+        return "conversion"
+    if "CPM" in upper or "曝光" in problem:
+        return "cpm"
+    if "消耗" in problem or "流速" in problem:
+        return "spend"
+    return ""
+
+
+def _action_category(action: str) -> str:
+    text = action.lstrip()
+    upper = text.upper()
+    if upper.startswith("综合营销 ROI") or "ROI：" in text:
+        return "roi"
+    if text.startswith(("追投", "降低追投")):
+        return "assist"
+    if "素材" in text or "低效" in text:
+        return "material"
+    if text.startswith("承接") or "GPM" in upper:
+        return "conversion"
+    if "CPM" in upper or "曝光" in text:
+        return "cpm"
+    if text.startswith(("消耗", "流速")):
+        return "spend"
+    return ""
+
+
+def _match_action(
+    problem: str,
+    adjustments: list[str],
+    used_indices: set[int],
+) -> str:
+    category = _problem_category(problem)
+    if category:
+        for index, action in enumerate(adjustments):
+            if index in used_indices:
+                continue
+            if _action_category(action) == category:
+                used_indices.add(index)
+                return action
+    for index, action in enumerate(adjustments):
+        if index not in used_indices and len(adjustments) == 1:
+            used_indices.add(index)
+            return action
+    return "打开完整报表核对证据后再决定是否操作；本轮不追加新的账户写动作"
+
+
+def build_priority_actions(
+    problems: list[str],
+    adjustments: list[str],
+    data_quality: dict,
+    *,
+    level: str = "normal",
+    limit: int = 3,
+) -> list[dict]:
+    """把异常收敛为最多 3 个问题，每个问题只配一个动作。"""
+    quality_status = str((data_quality or {}).get("status") or "unknown")
+    if quality_status not in {"good", "unknown"}:
+        issues = [
+            str(item).strip()
+            for item in (data_quality or {}).get("issues") or []
+            if str(item).strip()
+        ]
+        return [
+            {
+                "rank": 1,
+                "severity": "critical",
+                "problem": "数据质量不可信：" + ("；".join(issues) or "场次、来源或新鲜度未确认"),
+                "action": "先恢复并核验当前场次数据：重新读取并确认来源、新鲜度和场次；数据可信前不执行投放动作",
+                "verify_minutes": 10,
+            }
+        ]
+
+    clean_problems = [str(item).strip() for item in problems if str(item).strip()]
+    clean_adjustments = [
+        str(item).strip() for item in adjustments if str(item).strip()
+    ]
+    items: list[dict] = []
+    seen_problems: set[str] = set()
+    used_adjustments: set[int] = set()
+    for index, problem in enumerate(clean_problems):
+        if problem in seen_problems:
+            continue
+        seen_problems.add(problem)
+        action = _match_action(problem, clean_adjustments, used_adjustments)
+        items.append(
+            {
+                "rank": len(items) + 1,
+                "severity": _priority_severity(problem, index, level),
+                "problem": problem,
+                "action": action,
+                "verify_minutes": 10,
+            }
+        )
+        if len(items) >= limit:
+            break
+    return items
+
+
 def _focus_metric(report: dict) -> str:
     text = " ".join(
         [
@@ -89,15 +210,15 @@ def build_live_watch_task(
     adjustments = [
         str(item).strip() for item in report.get("adjustments") or [] if str(item).strip()
     ]
-    problem = problems[0] if problems else "本周期未返回明确异常"
-    action = (
-        adjustments[0]
-        if adjustments
-        else "暂不执行账户写操作，继续观察下一周期"
+    priority_actions = report.get("priority_actions") or build_priority_actions(
+        problems, adjustments, quality, level=str(report.get("level") or "normal")
     )
-    if quality_status not in {"good", "unknown"}:
-        action = "先恢复并核验当前场次数据，数据可信前不执行投放动作"
-        problem = "；".join(quality.get("issues") or []) or problem
+    top_action = priority_actions[0] if priority_actions else {}
+    problem = str(top_action.get("problem") or "本周期未返回明确异常")
+    action = str(
+        top_action.get("action")
+        or "暂不执行账户写操作，继续观察下一周期"
+    )
 
     focus_metric = "data_quality" if quality_status not in {"good", "unknown"} else _focus_metric(report)
     baseline = {
@@ -145,6 +266,7 @@ def build_live_watch_task(
             "problem": problem,
             "action": action,
             "focus_metric": focus_metric,
+            "priority_action": top_action,
             "baseline": baseline,
             "session_started_at": report.get("live_started_at"),
             "live_room_id": report.get("live_room_id"),
