@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """素材 ID → 素材名 的本地名册。
 
 为什么需要：千川操作日志里只有「素材ID」（如 1876023120663875），
@@ -9,8 +8,8 @@
 """
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 NAMES_PATH = Path(__file__).resolve().parents[3] / ".local" / "material_names.json"
 

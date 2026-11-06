@@ -28,8 +28,6 @@ def check_metrics(metrics, split: dict | None = None) -> list[str]:
     roi = _num(getattr(metrics, "roi", None))
     spend = _num(getattr(metrics, "spend", None))
     gmv = _num(getattr(metrics, "gmv", None))
-    gpm = _num(getattr(metrics, "gpm", None))
-    views = _num(getattr(metrics, "views", None))
 
     # 2) ROI = 成交 / 消耗
     if roi and spend and gmv and spend > 0:

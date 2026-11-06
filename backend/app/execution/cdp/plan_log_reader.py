@@ -4,10 +4,8 @@
 比我们自己的执行记录更完整，所以盯盘报表要把它一起读进来。
 """
 
-import asyncio
 import re
 from datetime import datetime
-from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 

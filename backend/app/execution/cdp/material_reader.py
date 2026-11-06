@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import json
 import re
 from contextlib import suppress

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """操作净效应 API。"""
 
 import csv

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """巨量开放平台 API 连接：状态 / 保存凭据 / 测试连接。"""
 
 import structlog

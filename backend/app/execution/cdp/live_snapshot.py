@@ -3,13 +3,12 @@ import json
 import re
 from contextlib import suppress
 from datetime import UTC, datetime
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 import httpx
 from websockets.asyncio.client import connect
-
-from pathlib import Path
 
 from app.execution.cdp.fixture_adapter import MetricSnapshot
 from app.execution.cdp.page_probe import validate_cdp_endpoint

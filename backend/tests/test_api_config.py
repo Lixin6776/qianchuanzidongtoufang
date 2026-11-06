@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """开放平台 API 凭据的本地保存/加载 + 连接测试的护栏。"""
 
 import pytest

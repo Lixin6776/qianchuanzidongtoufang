@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """本机配置读写（界面用）。改的是 .local/config.json，不进仓库。"""
 
 from fastapi import APIRouter

@@ -8,8 +8,8 @@ from app.services.analytics import ComputedMetrics
 from app.services.monitor import MonitorProfile
 from app.services.self_check import render_self_check, self_check, verify_data
 from app.services.thresholds import resolve_thresholds as _resolve_thresholds
-from app.services.thresholds import value_of as _threshold_value
 from app.services.thresholds import text_of as _threshold_text
+from app.services.thresholds import value_of as _threshold_value
 
 # 报告里统一使用的「参考线」。
 # 注意：这些不是官方阈值，是我们自己的判断线，正文里必须显式标注出来。
@@ -444,7 +444,7 @@ def build_spend_structure(split: dict | None) -> tuple[str, list[str], list[str]
             f"占账户总消耗约 {OFFICIAL_ASSIST_SHARE:.0f}%）"
         )
         fixes.append(
-            f"降追投占比：下调追投整体预算 20%~30%，把量让给基础计划，"
+            "降追投占比：下调追投整体预算 20%~30%，把量让给基础计划，"
             "10~20 分钟后看基础消耗能否回升（目标：基础占比 > 40%）"
         )
     else:

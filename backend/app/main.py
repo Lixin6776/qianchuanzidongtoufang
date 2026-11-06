@@ -56,7 +56,6 @@ from app.services.live_review import (
     insert_sections,
 )
 from app.services.live_watch import (
-    LiveWatchLogStore,
     LiveWatchService,
     compute_baselines,
 )
@@ -368,7 +367,6 @@ async def lifespan(application: FastAPI):
 
     async def run_daily_ops_briefing(application: FastAPI, day=None) -> dict:
         """生成《每日运营汇报》并推给运营助手对话（+ 飞书文档）。"""
-        from datetime import date as _date
 
         target_day = day or datetime.now(ZoneInfo("Asia/Shanghai")).date()
         inputs = collect_briefing_inputs(application.state)

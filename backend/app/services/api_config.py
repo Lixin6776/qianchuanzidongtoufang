@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 r"""巨量开放平台 API 凭据的本地持久化。
 
 和 llm_config 一样：存 \.local/api_config.json（.local 已被 gitignore），
