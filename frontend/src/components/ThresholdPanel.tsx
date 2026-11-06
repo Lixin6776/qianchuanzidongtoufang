@@ -150,7 +150,7 @@ export function ThresholdPanel() {
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
       await refreshKnowledge();
-      setKnowledgeNotice("知识文件已上传，后续分析会优先引用这些文件。");
+      setKnowledgeNotice("知识文件已上传，运营助手后续会优先引用这些文件。");
     } catch {
       setKnowledgeNotice("上传失败，请检查文件大小（最多 10MB）和本地服务。");
     } finally {
@@ -170,7 +170,7 @@ export function ThresholdPanel() {
       <p className="eyebrow">Trader knowledge base</p>
       <h3>知识文件</h3>
       <p className="ops-role-desc">
-        上传投手自己的规则、复盘、SOP 或数据文件后，分析和运营助手会优先参考这些内容。
+        上传投手自己的规则、复盘、SOP 或数据文件后，直播运营助手会优先参考这些内容，但不会自动覆盖下方的账户判断标准。
         没有上传文件时，自动使用本账户历史有效采样的平均值作为参考。
       </p>
       <div className="knowledge-upload-row">

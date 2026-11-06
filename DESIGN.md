@@ -185,7 +185,7 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - When a session ends, the card stops live animation and states that polling has stopped.
 
 ### Trader Knowledge Base
-- Knowledge files are the primary source: uploaded rules and SOPs are parsed for analysis and assistant context.
+- Knowledge files are the primary source for assistant context: uploaded rules and SOPs are parsed for the operations assistant.
 - When no file is uploaded, show account historical averages with sample counts and an explicit “historical reference, not a rule” label.
 - Non-text files may be stored, but must state that text extraction is unavailable rather than pretending they were analyzed.
 - Manual account thresholds remain available below the file section and continue to use versioned profiles.
