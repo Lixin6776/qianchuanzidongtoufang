@@ -239,3 +239,10 @@ test("chat panel reflects approval-based automation mode", () => {
     screen.getByText(/全自动化投放模式：系统会自动生成投放任务和操作预览/)
   ).toBeInTheDocument();
 });
+
+test("left navigation opens the trader knowledge base", async () => {
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "投手知识库" }));
+  expect(await screen.findByRole("region", { name: "投手知识库" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "账户判断标准" })).toBeInTheDocument();
+});

@@ -7,7 +7,7 @@ const createStrategyProfile = vi.fn();
 vi.mock("../lib/api", () => ({
   getActiveProfile: (...a: unknown[]) => getActiveProfile(...a),
   createStrategyProfile: (...a: unknown[]) => createStrategyProfile(...a),
-  // 决策窗口现在也会渲染《操作反馈表》
+  // 投手知识库窗口现在也会渲染《操作反馈表》
   getOpsOutcomeSnapshots: vi.fn().mockResolvedValue([]),
   getOpsOutcome: vi.fn().mockResolvedValue({
     baseline: { n: 0, median_delta: null, positive_rate: null, net_effect: null, operation: "（基线）" },
@@ -46,6 +46,7 @@ test("判断标准：读当前值、留空=自动、保存生成新版本", asyn
   render(<ThresholdPanel />);
 
   await waitFor(() => expect(getActiveProfile).toHaveBeenCalled());
+  expect(screen.getByRole("heading", { name: "账户判断标准" })).toBeInTheDocument();
   // 读到了当前设定的值
   const gpm = (await screen.findByLabelText("GPM")) as HTMLInputElement;
   expect(gpm.value).toBe("2500");

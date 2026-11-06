@@ -95,11 +95,14 @@ export function ThresholdPanel() {
 
   return (
     <section className="threshold-panel">
-      <p className="eyebrow">Decision rules</p>
-      <h3>判断标准</h3>
+      <p className="eyebrow">Trader knowledge base</p>
+      <h3>账户判断标准</h3>
       <p className="ops-role-desc">
-        这些是判断“某个指标好不好”的线。填了就用你填的；留空则自动：
-        先用本账户历史分位，样本不足再退回通用参考线（并在报告里标明"非本账户"）。
+        这里沉淀你自己的运营判断标准、指标口径和可复用规则。当前先开放“账户判断标准”，后续的策略经验和有效动作也在这里沉淀。
+      </p>
+      <p className="ops-role-desc">
+        填了就用你填的值；留空则自动：先用本账户历史分位，样本不足再退回通用参考线
+        （并在报告里标明"非本账户"）。
         {profile ? ` 当前策略 v${profile.version}。` : ""}
       </p>
 

@@ -98,7 +98,7 @@ type ToolWindow = "live_watch" | "decisions" | "tasks" | "jobs" | "llm" | "api" 
 
 const tools: Array<{ id: ToolWindow; label: string }> = [
   { id: "live_watch", label: "直播盯盘" },
-  { id: "decisions", label: "决策" },
+  { id: "decisions", label: "投手知识库" },
   { id: "tasks", label: "运营任务" },
   { id: "jobs", label: "直播运营助手" },
   { id: "llm", label: "大模型" },
@@ -328,7 +328,7 @@ export default function App() {
 
   function renderWindow() {
     if (activeWindow === "decisions") {
-      // 「决策」= 判断标准（阈值由你来定）
+      // 「投手知识库」= 账户判断标准与后续运营规则沉淀
       return <ThresholdPanel />;
     }
     if (activeWindow === "tasks") return <OpsTaskPanel />;
