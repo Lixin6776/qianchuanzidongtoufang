@@ -58,11 +58,18 @@ $nodeOk = $false
 if (Have node) {
     try {
         $nv = (& node --version 2>&1 | Out-String).Trim()
-        if ($nv -match "v(\d+)") { $nodeOk = $true; Say ("[=] Node 已装：" + $nv) }
+        if ($nv -match "v(\d+)") {
+            if ([int]$Matches[1] -ge 20) {
+                $nodeOk = $true
+                Say ("[=] Node 已装：" + $nv)
+            } else {
+                Say ("[!] Node 版本偏低（" + $nv + "），需要 20 或更高")
+            }
+        }
     } catch { }
 }
 if (-not $nodeOk) {
-    Say "[!] 没找到可用的 Node（需要 18 或更高）"
+    Say "[!] 没找到可用的 Node 20+"
     Try-Winget "OpenJS.NodeJS.LTS" "Node.js LTS" | Out-Null
 }
 

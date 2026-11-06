@@ -67,14 +67,23 @@ async def ensure_pages(endpoint: str, urls: list[str] | None = None) -> list[str
 
 
 def _chrome_executable():
-    candidates = [
-        Path(os.environ.get("PROGRAMFILES") or r"C:\Program Files")
-        / "Google/Chrome/Application/chrome.exe",
-        Path(os.environ.get("PROGRAMFILES(X86)") or r"C:\Program Files (x86)")
-        / "Google/Chrome/Application/chrome.exe",
-        Path(os.environ.get("LOCALAPPDATA") or "")
-        / "Google/Chrome/Application/chrome.exe",
-    ]
+    if sys.platform == "darwin":
+        candidates = [
+            Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+            Path.home()
+            / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        ]
+    elif sys.platform == "win32":
+        candidates = [
+            Path(os.environ.get("PROGRAMFILES") or r"C:\Program Files")
+            / "Google/Chrome/Application/chrome.exe",
+            Path(os.environ.get("PROGRAMFILES(X86)") or r"C:\Program Files (x86)")
+            / "Google/Chrome/Application/chrome.exe",
+            Path(os.environ.get("LOCALAPPDATA") or "")
+            / "Google/Chrome/Application/chrome.exe",
+        ]
+    else:
+        candidates = []
     for path in candidates:
         if path.is_file():
             return str(path)
@@ -83,11 +92,15 @@ def _chrome_executable():
 
 def default_profile_dir() -> Path:
     """用户平时那个 Chrome 的 user-data-dir（带千川登录态）。"""
+    if sys.platform == "darwin":
+        return Path.home() / "Library/Application Support/Google/Chrome"
     return Path(os.environ.get("LOCALAPPDATA") or "") / "Google/Chrome/User Data"
 
 
 def assistant_profile_dir() -> Path:
     """助手专用 profile（和日常浏览互不影响，登录态持久保存）。"""
+    if sys.platform == "darwin":
+        return Path.home() / "Library/Application Support/QianchuanAssistantChrome"
     return Path(os.environ.get("LOCALAPPDATA") or "") / "QianchuanAssistantChrome"
 
 
@@ -103,7 +116,19 @@ def _profile_has_login(profile: Path) -> bool:
 
 
 def _chrome_running() -> bool:
-    """有没有 chrome.exe 在跑（用默认 profile 的普通 Chrome 也算）。"""
+    """有没有 Chrome 在跑（含默认 profile 的普通 Chrome）。"""
+    if sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", "Google Chrome.app/Contents/MacOS/Google Chrome"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return result.returncode == 0 and bool((result.stdout or "").strip())
     if sys.platform != "win32":
         return False
     try:
@@ -206,7 +231,7 @@ async def connect(
     chrome = _chrome_executable()
     if chrome is None:
         status["chrome_found"] = False
-        status["message"] = "没找到 Chrome（chrome.exe）。请先装 Google Chrome，再点连接。"
+        status["message"] = "没找到 Google Chrome。请先安装 Chrome，再点连接。"
         return status
 
     running = await asyncio.to_thread(_chrome_running)
@@ -249,6 +274,8 @@ async def connect(
             kwargs["creationflags"] = (
                 subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
             )
+        elif sys.platform == "darwin":
+            kwargs["start_new_session"] = True
         subprocess.Popen(args, close_fds=True, **kwargs)
     except (OSError, subprocess.SubprocessError) as exc:
         status["message"] = f"拉起 Chrome 失败：{exc}"

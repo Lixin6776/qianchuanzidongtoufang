@@ -7,24 +7,26 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-untyped]
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.actions import router as actions_router
 from app.api.api_connection import router as api_connection_router
 from app.api.chat import router as chat_router
 from app.api.feishu import router as feishu_router
 from app.api.learning import router as learning_router
-from app.api.live_watch import router as live_watch_router
-from app.api.local_config import router as local_config_router
 from app.api.live_reviews import router as live_reviews_router
+from app.api.live_watch import router as live_watch_router
 from app.api.llm_connection import router as llm_connection_router
+from app.api.local_config import router as local_config_router
 from app.api.material_analyses import router as material_analyses_router
 from app.api.material_experiments import router as material_experiments_router
 from app.api.monitor import router as monitor_router
 from app.api.notifications import router as notifications_router
-from app.api.ops_outcome import router as ops_outcome_router
 from app.api.ops_chat import router as ops_chat_router
+from app.api.ops_outcome import router as ops_outcome_router
 from app.api.ops_tasks import router as ops_tasks_router
 from app.api.plans import router as plans_router
 from app.api.profiles import router as profiles_router
@@ -39,6 +41,7 @@ from app.execution.cdp.material_reader import CdpMaterialReader
 from app.execution.cdp.plan_log_reader import CdpPlanLogReader
 from app.execution.cdp.plan_reader import CdpPlanReader
 from app.execution.cdp.plan_split_reader import CdpPlanSplitReader
+from app.services import local_config
 from app.services.analytics import ComputedMetrics
 from app.services.api_client import OceanEngineApiClient
 from app.services.api_config import load_api_config
@@ -51,24 +54,10 @@ from app.services.live_review import (
     build_spend_structure,
     insert_sections,
 )
-from app.services.site_changes import SiteChangeStore
 from app.services.live_watch import (
     LiveWatchLogStore,
     LiveWatchService,
     compute_baselines,
-)
-from app.services.review_backfill import (
-    build_catch_up_review,
-    group_sessions,
-    missing_sessions,
-    review_date_of,
-)
-from app.services.watch_log_store import SqliteWatchLogStore
-from app.services import local_config
-from app.services.ops_chat import (
-    OpsChatStore,
-    build_daily_briefing,
-    collect_briefing_inputs,
 )
 from app.services.llm_config import load_llm_config
 from app.services.material_analysis import (
@@ -82,8 +71,21 @@ from app.services.monitor import (
     SnapshotReading,
 )
 from app.services.notifications import NotificationHub
+from app.services.ops_chat import (
+    OpsChatStore,
+    build_daily_briefing,
+    collect_briefing_inputs,
+)
 from app.services.profiles import StrategyProfileService
 from app.services.provider_router import API_SUPPORTED_ACTIONS, ProviderRouter
+from app.services.review_backfill import (
+    build_catch_up_review,
+    group_sessions,
+    missing_sessions,
+    review_date_of,
+)
+from app.services.site_changes import SiteChangeStore
+from app.services.watch_log_store import SqliteWatchLogStore
 
 
 async def refresh_plan_snapshot(application: FastAPI) -> None:
@@ -808,6 +810,45 @@ async def lifespan(application: FastAPI):
             pass
 
 
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_RESERVED_FRONTEND_PREFIXES = ("api", "docs", "redoc", "health", "openapi.json")
+
+
+def mount_frontend(application: FastAPI, dist_dir: Path = FRONTEND_DIST) -> bool:
+    """托管构建后的 React 前端；未构建时保持纯 API 模式。"""
+    dist_dir = Path(dist_dir).resolve()
+    index_file = dist_dir / "index.html"
+    if not index_file.is_file():
+        return False
+
+    assets_dir = dist_dir / "assets"
+    if assets_dir.is_dir():
+        application.mount(
+            "/assets",
+            StaticFiles(directory=assets_dir),
+            name="frontend-assets",
+        )
+
+    @application.get("/{full_path:path}", include_in_schema=False)
+    async def frontend_fallback(full_path: str):
+        if any(
+            full_path == prefix or full_path.startswith(f"{prefix}/")
+            for prefix in _RESERVED_FRONTEND_PREFIXES
+        ):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        candidate = (dist_dir / full_path).resolve()
+        try:
+            candidate.relative_to(dist_dir)
+        except ValueError:
+            return FileResponse(index_file)
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(index_file)
+
+    return True
+
+
 app = FastAPI(title="Qianchuan Local Assistant", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -839,3 +880,6 @@ app.include_router(recommendations_router)
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+mount_frontend(app)

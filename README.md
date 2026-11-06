@@ -6,7 +6,7 @@
 
 > 第一次用、只是想赶紧跑起来？看 **[三步上手.md](三步上手.md)**（装环境 → 填直播间 → 连数据源出报表）。
 
-**开源、免费、随便用**：代码公开在 GitHub，任何人可以克隆到自己的 Windows 电脑上用；
+**开源、免费、随便用**：代码公开在 GitHub，任何人可以克隆到自己的 Windows 或 Mac 电脑上用；
 数据只存在你本机（`.local/` 和 `backend/.env` 都不进仓库），作者不碰你的账户。
 
 ---
@@ -15,14 +15,14 @@
 
 | 依赖 | 说明 |
 | --- | --- |
-| Windows | 启动脚本是 PowerShell / cmd |
+| Windows / macOS | Windows 使用 PowerShell / cmd；macOS 使用 `.command` |
 | Google Chrome | 工具通过**调试端口(9222)**读千川页面，需要在本机装 Chrome |
 | Python 3.11+ | 后端 |
-| Node 18+ / pnpm | 前端 |
+| Node 20+ / pnpm | 前端 |
 
 ---
 
-## 第一次在新电脑上跑起来
+## 第一次在新电脑上跑起来（Windows）
 
 **最简单：双击 `安装依赖.cmd`** —— 它会检测 Python / Node / pnpm（缺了提示去哪装，
 能用 winget 就自动装），然后装好后端和前端依赖，并生成 `backend/.env`。
@@ -57,6 +57,29 @@ copy backend\.env.example backend\.env
 启动后打开 <http://127.0.0.1:5173>。
 第一次连数据源时，如果弹出的 Chrome 停在千川登录页，**登录一次**即可（登录态会保留）。
 
+## macOS 第一次安装
+
+macOS 使用后端直接托管构建后的前端，日常只访问 <http://127.0.0.1:8000>，不需要单独启动 Vite。
+
+```bash
+git clone https://github.com/Lixin6776/qianchuanzidongtoufang.git qianchuan-ai-assistant
+cd qianchuan-ai-assistant
+chmod +x 安装依赖-macOS.command 启动直播运营助手-macOS.command
+./安装依赖-macOS.command
+```
+
+安装完成后双击或执行：
+
+```bash
+./启动直播运营助手-macOS.command
+```
+
+脚本会启动 8000 端口后端、检查 Chrome 调试端口并打开工具页面。完整步骤、数据迁移、
+权限处理和验收清单见 **[docs/Mac使用指南.md](docs/Mac使用指南.md)**。
+
+> macOS 适配已通过代码级自动化测试；本次开发机为 Windows，首次在真实 Mac 上使用仍建议
+> 按指南完成一次安装、Chrome 启动和千川登录验收。
+
 ---
 
 ## 换电脑时，哪些东西**不会**跟着仓库走
@@ -78,7 +101,7 @@ copy backend\.env.example backend\.env
 
 ---
 
-## 一键启动脚本做了什么
+## Windows 一键启动脚本做了什么
 
 `启动直播运营助手.cmd` → 调 `start.ps1`：
 
@@ -89,6 +112,9 @@ copy backend\.env.example backend\.env
 
 已在跑的部分会跳过，可以重复双击。
 日志在 `.local/logs/`。
+
+macOS 对应脚本是 `安装依赖-macOS.command` 和 `启动直播运营助手-macOS.command`。
+macOS 启动后由后端 8000 直接托管前端，不会额外占用 5173。
 
 ---
 
@@ -129,7 +155,10 @@ copy backend\.env.example backend\.env
 流速分层、操作分类规则、样本护栏、已知局限，全都写清楚了。
 
 **Mac / Linux 能用吗？**
-暂时**只支持 Windows**（启动脚本是 PowerShell / cmd，读数据走 Windows 的 Chrome）。
+Windows 和 macOS 都可以使用，但启动方式不同：
+- Windows：`启动直播运营助手.cmd`
+- macOS：`启动直播运营助手-macOS.command`，详见 [docs/Mac使用指南.md](docs/Mac使用指南.md)
+- Linux：尚未提供正式启动脚本和验收支持
 
 **一定要有 Chrome 吗？**
 要。工具靠本机 Chrome 的**调试端口（9222）**读千川页面，必须装 Google Chrome。
