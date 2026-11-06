@@ -20,6 +20,9 @@ _RUNTIME_COLUMNS = {
         "window_start": "DATETIME",
         "window_end": "DATETIME",
     },
+    "ops_tasks": {
+        "context": "JSON",
+    },
 }
 
 

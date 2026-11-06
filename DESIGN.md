@@ -184,6 +184,17 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - Status is communicated with label plus color, never color alone.
 - When a session ends, the card stops live animation and states that polling has stopped.
 
+### Decision Loop Action
+- The live status card presents one prioritized action, not a list of competing suggestions.
+- The action explains that creating a task saves the pre-action baseline and checks results at 10 and 30 minutes.
+- Task creation never executes an account write; it creates an auditable operations task for human confirmation.
+
+### Task Verification
+- The operations task window appears before the manual task form.
+- Verification shows the baseline, 10-minute and 30-minute observations, data-quality gate, and a suggested verdict.
+- A successful verdict can be confirmed to complete the task; a failed verdict creates a rollback task instead of claiming an automatic rollback.
+- Missing or untrusted validation data must be labeled as insufficient, never inferred as success.
+
 ### Report Cards
 - White reading surface with a clear report type, time, status, and three key metrics.
 - Full report details are collapsed by default.

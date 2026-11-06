@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 import { LiveStatusCard } from "../components/LiveStatusCard";
@@ -71,7 +71,7 @@ test("live status card surfaces the latest room and operator metrics", () => {
   expect(screen.getByText("新鲜度 新鲜")).toBeInTheDocument();
   expect(screen.getByText("场次 已确认")).toBeInTheDocument();
   expect(screen.getByText(/综合营销 ROI 未达标/)).toBeInTheDocument();
-  expect(screen.getByText(/先收缩低效素材/)).toBeInTheDocument();
+  expect(screen.getAllByText(/先收缩低效素材/).length).toBeGreaterThan(0);
 });
 test("ended live shows the final snapshot and stops polling", async () => {
   vi.useFakeTimers();
@@ -253,4 +253,18 @@ test("unconfirmed session blocks live judgment and average online", async () => 
   expect(screen.getByText("场次待确认")).toBeInTheDocument();
   expect(screen.getByText("场次未确认，不计算均值")).toBeInTheDocument();
   expect(screen.getAllByText(/场次开播时间未确认/).length).toBeGreaterThan(0);
+});
+
+test("creates a 10-minute verification task from the current report", async () => {
+  const createTask = vi.fn().mockResolvedValue({
+    id: "task-1",
+    status: "open",
+    due_at: "2026-10-20T14:35:00+08:00"
+  });
+
+  render(<LiveStatusCard report={report} refreshMs={0} createTask={createTask} />);
+  fireEvent.click(screen.getByRole("button", { name: "生成 10 分钟验证任务" }));
+
+  await waitFor(() => expect(createTask).toHaveBeenCalledWith("watch-1"));
+  await waitFor(() => expect(screen.getByText(/已生成验证任务/)).toBeInTheDocument());
 });

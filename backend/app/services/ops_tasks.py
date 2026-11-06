@@ -21,18 +21,39 @@ class OpsTaskService:
             self.session.scalars(select(OpsTask).order_by(OpsTask.updated_at.desc()))
         )
 
-    def create(self, payload: OpsTaskCreate) -> OpsTask:
-        item = OpsTask(
+    @staticmethod
+    def create_model(payload: OpsTaskCreate) -> OpsTask:
+        moment = datetime.now(UTC)
+        return OpsTask(
             **payload.model_dump(exclude={"notify_feishu"}),
             status="open",
             result="",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=moment,
+            updated_at=moment,
         )
+
+    def create(self, payload: OpsTaskCreate) -> OpsTask:
+        item = self.create_model(payload)
         self.session.add(item)
         self.session.commit()
         self.session.refresh(item)
         return item
+
+    def create_from_live_watch(self, report: dict) -> OpsTask:
+        report_id = str(report.get("id") or "").strip()
+        if not report_id:
+            raise ValueError("Watch report id is required")
+        existing = self.session.scalar(
+            select(OpsTask).where(
+                OpsTask.source_type == "live_watch",
+                OpsTask.source_id == report_id,
+            )
+        )
+        if existing is not None:
+            return existing
+        from app.services.decision_loop import build_live_watch_task
+
+        return self.create(build_live_watch_task(report))
 
     def get(self, task_id: str) -> OpsTask:
         item = self.session.get(OpsTask, task_id)

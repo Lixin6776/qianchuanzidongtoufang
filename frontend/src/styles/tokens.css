@@ -2003,6 +2003,134 @@ body {
 }
 .live-status-quality-muted { color: #a6b6ce !important; }
 
+/* Task board: verification tasks first, manual task form collapsed */
+.ops-task-create {
+  margin-top: 12px;
+  border: 1px solid #e3eaf4;
+  border-radius: 9px;
+  background: #fbfcff;
+}
+.ops-task-create > summary {
+  padding: 11px 14px;
+  color: #40506a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ops-task-create > summary::marker { color: #7a8aa2; }
+.ops-task-create .ops-task-form {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #edf0f4;
+  border-radius: 0 0 9px 9px;
+}
+
+/* Decision loop: one prioritized action with an explicit verification task */
+.live-action-loop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(56, 139, 253, 0.24);
+  border-radius: 9px;
+  background:
+    linear-gradient(120deg, rgba(37, 99, 235, 0.12), rgba(34, 211, 238, 0.045)),
+    rgba(255, 255, 255, 0.025);
+}
+.live-action-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.live-action-copy > span {
+  color: #7fb9ff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.live-action-copy > strong {
+  color: #eaf4ff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.live-action-copy > small {
+  color: #8da4c4;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.live-action-success {
+  color: #74e7cd;
+  font-size: 11px;
+  font-style: normal;
+}
+.live-action-error {
+  color: #ff9aaa;
+  font-size: 11px;
+  font-style: normal;
+}
+.live-action-loop .button-primary { flex: 0 0 auto; }
+
+.task-verification {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+  padding: 10px 12px;
+  border: 1px solid #e3eaf4;
+  border-radius: 8px;
+  background: #f8faff;
+}
+.task-verification-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.task-verification-head > span {
+  color: #596579;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.task-verification-head > strong {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #596579;
+  font-size: 11px;
+}
+.task-verification-success { background: #eaf7ef !important; color: #1e7a4b !important; }
+.task-verification-failure { background: #feebec !important; color: #c52a30 !important; }
+.task-verification-neutral { background: #fff5e5 !important; color: #a9660d !important; }
+.task-verification-insufficient_data { background: #f2f3f5 !important; color: #646a73 !important; }
+.task-verification-caveat {
+  color: #7a879b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.task-verification code {
+  color: #24334a;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+.task-verification p {
+  margin: 2px 0 0;
+  color: #596579;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .live-action-loop {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .live-action-loop .button-primary { width: 100%; }
+}
+
 /* Ended live state: keep the final snapshot, stop the live signal */
 .live-status-muted { border-left-color: #64748b; }
 .live-status-pulse.is-ended {

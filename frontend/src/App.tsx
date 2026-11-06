@@ -8,6 +8,7 @@ import { LiveStatusCard } from "./components/LiveStatusCard";
 import { OnboardingGuide } from "./components/OnboardingGuide";
 import { DataAssetPanel } from "./components/DataAssetPanel";
 import { OpsChatPanel } from "./components/OpsChatPanel";
+import { OpsTaskPanel } from "./components/OpsTaskPanel";
 import { MaterialAnalysisList, type MaterialAnalysis } from "./components/MaterialAnalysisList";
 import { FeishuConnectionPanel } from "./components/FeishuConnectionPanel";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
@@ -93,11 +94,12 @@ type ExecutionJob = {
   created_at: string;
 };
 
-type ToolWindow = "live_watch" | "decisions" | "jobs" | "llm" | "api" | "learning" | "evaluation" | "feishu" | "advanced" | "asset";
+type ToolWindow = "live_watch" | "decisions" | "tasks" | "jobs" | "llm" | "api" | "learning" | "evaluation" | "feishu" | "advanced" | "asset";
 
 const tools: Array<{ id: ToolWindow; label: string }> = [
   { id: "live_watch", label: "直播盯盘" },
   { id: "decisions", label: "决策" },
+  { id: "tasks", label: "运营任务" },
   { id: "jobs", label: "直播运营助手" },
   { id: "llm", label: "大模型" },
   { id: "learning", label: "直播复盘" },
@@ -329,6 +331,7 @@ export default function App() {
       // 「决策」= 判断标准（阈值由你来定）
       return <ThresholdPanel />;
     }
+    if (activeWindow === "tasks") return <OpsTaskPanel />;
     if (activeWindow === "jobs") {
       // 直播运营助手 = 一个能对话的资深运营（执行记录折叠在下方）
       return <OpsChatPanel incomingMessage={opsIncoming} jobs={jobs} />;

@@ -149,6 +149,7 @@ class OpsTaskCreate(BaseModel):
     due_at: datetime | None = None
     success_criteria: str = ""
     stop_condition: str = ""
+    context: dict = Field(default_factory=dict)
     notify_feishu: bool = False
 
 
@@ -177,6 +178,8 @@ class OpsTaskRead(BaseModel):
     success_criteria: str
     stop_condition: str
     result: str
+    context: dict = Field(default_factory=dict)
+    verification: dict | None = None
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None

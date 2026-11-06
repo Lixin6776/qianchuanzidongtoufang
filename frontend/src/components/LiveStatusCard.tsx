@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { LiveWatchDataQuality, LiveWatchReport, LiveWatchStatus } from "../lib/api";
-import { getLiveWatchStatus } from "../lib/api";
+import { createOpsTaskFromLiveWatch, getLiveWatchStatus } from "../lib/api";
 
 type Tone = "success" | "warning" | "danger" | "muted";
 
@@ -131,20 +131,31 @@ function toneLabel(tone: Tone) {
   return "等待数据";
 }
 
+type CreatedTask = {
+  id: string;
+  status: string;
+  due_at?: string | null;
+};
+
 export function LiveStatusCard({
   report: providedReport,
   load = loadLatestSnapshot,
+  createTask = createOpsTaskFromLiveWatch,
   refreshMs = 30_000
 }: {
   /** 测试或上层注入时使用；不传则由组件每 30 秒读取最新盯盘记录和运行状态。 */
   report?: LiveWatchReport | null;
   load?: () => Promise<LiveStatusLoadResult>;
+  createTask?: (reportId: string) => Promise<CreatedTask>;
   refreshMs?: number;
 }) {
   const [report, setReport] = useState<LiveWatchReport | null>(providedReport ?? null);
   const [status, setStatus] = useState<LiveWatchStatus | null>(null);
   const [loading, setLoading] = useState(providedReport === undefined);
   const [error, setError] = useState<string | null>(null);
+  const [taskBusy, setTaskBusy] = useState(false);
+  const [createdTask, setCreatedTask] = useState<CreatedTask | null>(null);
+  const [taskError, setTaskError] = useState("");
 
   useEffect(() => {
     if (providedReport !== undefined) {
@@ -189,6 +200,11 @@ export function LiveStatusCard({
       if (timer !== null) window.clearInterval(timer);
     };
   }, [providedReport, load, refreshMs]);
+
+  useEffect(() => {
+    setCreatedTask(null);
+    setTaskError("");
+  }, [report?.id, providedReport]);
 
   const problem = plainText(report?.problems?.find((item) => item.trim()));
   const adjustment = plainText(report?.adjustments?.find((item) => item.trim()));
@@ -367,6 +383,30 @@ export function LiveStatusCard({
                 : problem || error
                   ? `发现 ${report?.problems?.filter((item) => item.trim()).length ?? 1} 项问题`
                   : "本周期未发现异常";
+  const actionText = adjustment || "";
+  const taskDueText = createdTask?.due_at
+    ? new Date(createdTask.due_at).toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    : "";
+  const canCreateTask =
+    Boolean(report?.id && actionText) && !snapshotOnly && qualityStatus !== "partial";
+
+  async function handleCreateTask() {
+    if (!report?.id || !canCreateTask || taskBusy) return;
+    setTaskBusy(true);
+    setTaskError("");
+    try {
+      const task = await createTask(report.id);
+      setCreatedTask(task);
+    } catch {
+      setTaskError("生成验证任务失败，请检查本地服务。");
+    } finally {
+      setTaskBusy(false);
+    }
+  }
+
   const observedLabel = sessionMismatch
     ? "最后数据"
     : isEnded
@@ -438,6 +478,32 @@ export function LiveStatusCard({
           <span>新鲜度 {freshnessLabel(dataQuality?.freshness)}</span>
           <span>场次 {sessionMismatch ? "不一致" : sessionConfirmed ? "已确认" : "待确认"}</span>
           <span>平均在线样本 {onlineSamples}</span>
+        </div>
+      ) : null}
+
+      {report ? (
+        <div className="live-action-loop" aria-label="本轮决策闭环">
+          <div className="live-action-copy">
+            <span>本轮优先动作</span>
+            <strong>{actionText || "暂无明确动作，继续观察下一周期"}</strong>
+            <small>
+              生成任务后会保存动作前基线，并在 10 / 30 分钟核对数据；执行仍由你人工确认。
+            </small>
+            {createdTask ? (
+              <em className="live-action-success" aria-live="polite">
+                已生成验证任务{taskDueText ? ` · 截止 ${taskDueText}` : ""}
+              </em>
+            ) : null}
+            {taskError ? <em className="live-action-error">{taskError}</em> : null}
+          </div>
+          <button
+            className="button-primary"
+            type="button"
+            disabled={!canCreateTask || taskBusy || Boolean(createdTask)}
+            onClick={() => void handleCreateTask()}
+          >
+            {taskBusy ? "创建中" : createdTask ? "已生成任务" : "生成 10 分钟验证任务"}
+          </button>
         </div>
       ) : null}
 

@@ -15,6 +15,7 @@ vi.mock("../lib/api", () => ({
     connected: true, pages: 1, qianchuan_pages: 1, error: null
   }),
   tickLiveWatch: vi.fn().mockResolvedValue({}),
+  createOpsTaskFromLiveWatch: vi.fn().mockResolvedValue({ id: "task-1", status: "open" }),
   getLiveWatchLogs: vi.fn().mockResolvedValue([]),
   saveLocalConfig: vi.fn().mockResolvedValue({ saved: {}, message: "ok" }),
   createStrategyProfile: vi.fn().mockResolvedValue({

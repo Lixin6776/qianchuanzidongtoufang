@@ -57,6 +57,12 @@ class LiveWatchLogStore:
         items = self._read()
         return items[-1] if items else None
 
+    def get(self, report_id: str) -> dict | None:
+        return next(
+            (item for item in self._read() if str(item.get("id") or "") == str(report_id)),
+            None,
+        )
+
     def append(self, report: dict) -> dict:
         items = self._read()
         items.append(report)

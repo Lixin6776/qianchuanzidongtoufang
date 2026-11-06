@@ -1,6 +1,7 @@
 type ToolIconName =
   | "live_watch"
   | "decisions"
+  | "tasks"
   | "jobs"
   | "llm"
   | "learning"
@@ -26,6 +27,9 @@ export function ToolIcon({ name }: { name: ToolIconName }) {
   }
   if (name === "decisions") {
     return <svg {...props}><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg>;
+  }
+  if (name === "tasks") {
+    return <svg {...props}><rect x="4" y="4" width="16" height="16" rx="2" /><path d="m8 9 2 2 3-4M8 15h7" /></svg>;
   }
   if (name === "jobs") {
     return <svg {...props}><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 3v-13a2 2 0 0 1 2-2Z" /><path d="M8 10h8M8 13h5" /></svg>;

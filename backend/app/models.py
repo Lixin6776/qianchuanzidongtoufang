@@ -169,6 +169,7 @@ class OpsTask(Base):
     success_criteria: Mapped[str] = mapped_column(Text, nullable=False, default="")
     stop_condition: Mapped[str] = mapped_column(Text, nullable=False, default="")
     result: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    context: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

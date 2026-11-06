@@ -85,6 +85,14 @@ class SqliteWatchLogStore:
         items = self.list_logs(limit=1)
         return items[0] if items else None
 
+    def get(self, report_id: str) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT payload FROM watch_reports WHERE id = ?",
+                (str(report_id),),
+            ).fetchone()
+        return self._decode(row[0]) if row else None
+
     def append(self, report: dict) -> dict:
         payload = json.dumps(report, ensure_ascii=False)
         with self._connect() as conn:
