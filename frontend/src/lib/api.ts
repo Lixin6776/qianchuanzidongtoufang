@@ -700,6 +700,57 @@ export async function generateOpsBriefing(): Promise<OpsChatMessage> {
   return response.json();
 }
 
+// --- 投手知识库 -------------------------------------------------------------
+
+export type KnowledgeMetricReference = {
+  key: string;
+  label: string;
+  average: number;
+  unit: string;
+  samples: number;
+};
+
+export type KnowledgeFile = {
+  id: string;
+  name: string;
+  size: number;
+  content_type: string;
+  uploaded_at: string;
+  parse_status: "parsed" | "stored_only" | string;
+  preview: string;
+};
+
+export type KnowledgeOverview = {
+  mode: "uploaded" | "historical_average" | "empty" | string;
+  files: KnowledgeFile[];
+  historical_reference: {
+    sample_count: number;
+    window_start?: string | null;
+    window_end?: string | null;
+    metrics: KnowledgeMetricReference[];
+    note: string;
+  } | null;
+};
+
+export async function getKnowledgeOverview(): Promise<KnowledgeOverview> {
+  return cachedGet<KnowledgeOverview>("/api/knowledge-base");
+}
+
+export async function uploadKnowledgeFile(payload: {
+  name: string;
+  content_base64: string;
+  content_type: string;
+}): Promise<KnowledgeFile> {
+  const response = await fetch(`${API_BASE}/api/knowledge-base/files`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error("Knowledge file upload failed");
+  clearGetCache("/api/knowledge-base");
+  return response.json();
+}
+
 // --- 本机配置（直播间 / 账户）------------------------------------------------
 
 export type LocalConfig = {

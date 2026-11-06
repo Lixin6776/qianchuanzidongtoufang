@@ -16,6 +16,7 @@ from app.api.actions import router as actions_router
 from app.api.api_connection import router as api_connection_router
 from app.api.chat import router as chat_router
 from app.api.feishu import router as feishu_router
+from app.api.knowledge_base import router as knowledge_base_router
 from app.api.learning import router as learning_router
 from app.api.live_reviews import router as live_reviews_router
 from app.api.live_watch import router as live_watch_router
@@ -863,6 +864,7 @@ app.include_router(actions_router)
 app.include_router(api_connection_router)
 app.include_router(monitor_router)
 app.include_router(plans_router)
+app.include_router(knowledge_base_router)
 app.include_router(learning_router)
 app.include_router(live_watch_router)
 app.include_router(live_reviews_router)

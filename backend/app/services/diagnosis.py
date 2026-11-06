@@ -249,7 +249,7 @@ def diagnose(
         assist = float(spend_split.get("assist_spend") or 0)
         if basic + assist > 0:
             ratio = assist / (basic + assist) * 100
-            # 判断线：你在「决策」窗口设的 → 本账户分位 → 通用（和复盘同一套）
+            # 判断线：你在「投手知识库」设的 → 本账户分位 → 通用（和复盘同一套）
             from app.services.thresholds import describe as _describe
             from app.services.thresholds import value_of as _value_of
 

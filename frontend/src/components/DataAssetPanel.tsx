@@ -73,7 +73,7 @@ function Verdict({ value }: { value: string }) {
  * 数据资产：数据证明了什么。
  *
  * 和「投手知识库」分工：
- *   决策   = 我定的规则（阈值 / 策略 / ROI 目标）
+ *   投手知识库 = 我定的规则（阈值 / 策略 / ROI 目标）
  *   数据资产 = 本账户实测出来的证据（哪些操作被正向反馈、在什么流速下有效）
  */
 export function DataAssetPanel() {

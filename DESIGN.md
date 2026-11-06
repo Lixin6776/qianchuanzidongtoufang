@@ -184,6 +184,12 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - Status is communicated with label plus color, never color alone.
 - When a session ends, the card stops live animation and states that polling has stopped.
 
+### Trader Knowledge Base
+- Knowledge files are the primary source: uploaded rules and SOPs are parsed for analysis and assistant context.
+- When no file is uploaded, show account historical averages with sample counts and an explicit “historical reference, not a rule” label.
+- Non-text files may be stored, but must state that text extraction is unavailable rather than pretending they were analyzed.
+- Manual account thresholds remain available below the file section and continue to use versioned profiles.
+
 ### Decision Loop Action
 - The live status card collapses the report into at most three highest-priority problems, ranked P1–P3.
 - Each problem has exactly one action and one verification window; unrelated actions are not mixed into the same item.

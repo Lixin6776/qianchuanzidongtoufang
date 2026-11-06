@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { createStrategyProfile, getActiveProfile } from "../lib/api";
+import {
+  createStrategyProfile,
+  getActiveProfile,
+  getKnowledgeOverview,
+  uploadKnowledgeFile,
+  type KnowledgeOverview
+} from "../lib/api";
 
 type Profile = {
   version: number;
@@ -13,6 +19,23 @@ type Profile = {
   allowed_actions?: string[];
   notification_policy?: Record<string, unknown>;
 };
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result || "");
+      const [, base64 = ""] = value.split(",", 2);
+      if (!base64) {
+        reject(new Error("empty file"));
+        return;
+      }
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error || new Error("file read failed"));
+    reader.readAsDataURL(file);
+  });
+}
 
 /** 可自定义的判断标准（留空 = 自动） */
 const FIELDS: Array<{ key: string; label: string; unit: string; hint: string }> = [
@@ -33,6 +56,31 @@ export function ThresholdPanel() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [knowledge, setKnowledge] = useState<KnowledgeOverview | null>(null);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(true);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [knowledgeNotice, setKnowledgeNotice] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function refreshKnowledge() {
+    const next = await getKnowledgeOverview();
+    setKnowledge(next);
+  }
+
+  useEffect(() => {
+    let active = true;
+    refreshKnowledge()
+      .catch(() => {
+        if (active) setKnowledgeNotice("知识文件读取失败，检查本地服务是否在运行。");
+      })
+      .finally(() => {
+        if (active) setKnowledgeLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     getActiveProfile()
@@ -86,6 +134,30 @@ export function ThresholdPanel() {
     }
   }
 
+  async function handleUploadKnowledge() {
+    if (!selectedFiles.length || uploading) return;
+    setUploading(true);
+    setKnowledgeNotice("");
+    try {
+      for (const file of selectedFiles) {
+        const contentBase64 = await readFileAsBase64(file);
+        await uploadKnowledgeFile({
+          name: file.name,
+          content_base64: contentBase64,
+          content_type: file.type
+        });
+      }
+      setSelectedFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await refreshKnowledge();
+      setKnowledgeNotice("知识文件已上传，后续分析会优先引用这些文件。");
+    } catch {
+      setKnowledgeNotice("上传失败，请检查文件大小（最多 10MB）和本地服务。");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   function resetAll() {
     const next: Record<string, string> = {};
     for (const field of FIELDS) next[field.key] = "";
@@ -96,7 +168,97 @@ export function ThresholdPanel() {
   return (
     <section className="threshold-panel">
       <p className="eyebrow">Trader knowledge base</p>
-      <h3>账户判断标准</h3>
+      <h3>知识文件</h3>
+      <p className="ops-role-desc">
+        上传投手自己的规则、复盘、SOP 或数据文件后，分析和运营助手会优先参考这些内容。
+        没有上传文件时，自动使用本账户历史有效采样的平均值作为参考。
+      </p>
+      <div className="knowledge-upload-row">
+        <label className="knowledge-file-picker">
+          <span>选择知识文件</span>
+          <input
+            ref={fileInputRef}
+            aria-label="上传知识文件"
+            type="file"
+            multiple
+            accept=".txt,.md,.markdown,.csv,.json,.yaml,.yml,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
+            onChange={(event) => {
+              setSelectedFiles(Array.from(event.target.files || []));
+              setKnowledgeNotice("");
+            }}
+          />
+        </label>
+        <button
+          className="button-primary"
+          type="button"
+          disabled={!selectedFiles.length || uploading}
+          onClick={() => void handleUploadKnowledge()}
+        >
+          {uploading ? "上传中" : "上传到知识库"}
+        </button>
+      </div>
+      {selectedFiles.length ? (
+        <p className="monitor-signal">
+          待上传：{selectedFiles.map((file) => file.name).join("、")}
+        </p>
+      ) : null}
+      {knowledgeNotice ? <p className="monitor-signal">{knowledgeNotice}</p> : null}
+
+      {knowledgeLoading ? (
+        <div className="module-loading">
+          <span className="module-spinner" aria-hidden="true" />
+          正在读取知识文件…
+        </div>
+      ) : knowledge?.files.length ? (
+        <div className="knowledge-file-list">
+          {knowledge.files.map((file) => (
+            <article key={file.id}>
+              <div>
+                <strong>{file.name}</strong>
+                <span>
+                  {(file.size / 1024).toFixed(1)} KB ·{" "}
+                  {file.parse_status === "parsed" ? "文本已解析" : "已存储，暂不提取文本"}
+                </span>
+              </div>
+              {file.preview ? <p>{file.preview}</p> : null}
+            </article>
+          ))}
+        </div>
+      ) : knowledge?.mode === "historical_average" && knowledge.historical_reference ? (
+        <section className="knowledge-history-reference" aria-label="账户历史参考">
+          <header>
+            <div>
+              <strong>账户历史参考</strong>
+              <span>
+                {knowledge.historical_reference.sample_count} 次有效采样平均值
+                {knowledge.historical_reference.window_start
+                  ? ` · ${new Date(knowledge.historical_reference.window_start).toLocaleDateString("zh-CN")} 至 ${new Date(knowledge.historical_reference.window_end || knowledge.historical_reference.window_start).toLocaleDateString("zh-CN")}`
+                  : ""}
+              </span>
+            </div>
+            <em>历史参考，不是规则</em>
+          </header>
+          <div className="knowledge-history-metrics">
+            {knowledge.historical_reference.metrics.map((metric) => (
+              <article key={metric.key}>
+                <strong>
+                  {metric.label} {metric.average}
+                  {metric.unit ? ` ${metric.unit}` : ""}
+                </strong>
+                <small>n={metric.samples}</small>
+              </article>
+            ))}
+          </div>
+          <p>{knowledge.historical_reference.note}</p>
+        </section>
+      ) : (
+        <div className="module-empty-state">
+          <strong>暂无知识文件和历史参考</strong>
+          <span>先上传文件，或积累足够的有效盯盘采样。</span>
+        </div>
+      )}
+
+      <h3 className="knowledge-threshold-title">账户判断标准</h3>
       <p className="ops-role-desc">
         这里沉淀你自己的运营判断标准、指标口径和可复用规则。当前先开放“账户判断标准”，后续的策略经验和有效动作也在这里沉淀。
       </p>
@@ -106,7 +268,8 @@ export function ThresholdPanel() {
         {profile ? ` 当前策略 v${profile.version}。` : ""}
       </p>
 
-      <table className="threshold-table">
+      <div className="threshold-table-wrap">
+        <table className="threshold-table">
         <thead>
           <tr>
             <th>指标</th>
@@ -134,7 +297,8 @@ export function ThresholdPanel() {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div className="live-watch-actions">
         <button className="button-outline" type="button" onClick={handleSave} disabled={busy || !profile}>

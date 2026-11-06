@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """直播运营助手：一个能对话的资深直播运营。
 
 和主聊天框的分工（跟用户约好的）：
@@ -157,7 +156,15 @@ class OpsChatStore:
 
 
 def _knowledge_excerpt(limit: int = 3500) -> str:
-    """官方运营手册摘要（给模型当参考资料，不是让它整篇背）。"""
+    """投手上传知识优先；没有文件时再读官方运营手册。"""
+    try:
+        from app.services.knowledge_base import KnowledgeBaseStore
+
+        uploaded = KnowledgeBaseStore().knowledge_excerpt(limit=limit)
+        if uploaded:
+            return uploaded
+    except Exception:  # noqa: BLE001
+        pass
     for name in ("ops_playbook.md", "official_rules.md"):
         path = KNOWLEDGE_DIR / name
         try:
@@ -237,6 +244,7 @@ def build_ops_context(
     reviews: list[dict] | None = None,
     analyses: list[dict] | None = None,
     history: list[dict] | None = None,
+    knowledge_reference: dict | None = None,
 ) -> dict:
     """给运营助手准备的只读上下文。"""
     strategy = None
@@ -269,6 +277,7 @@ def build_ops_context(
             {"role": item.get("role"), "content": str(item.get("content") or "")[:600]}
             for item in (history or [])[-6:]
         ],
+        "投手知识库参考": knowledge_reference,
         "官方运营手册摘要": _knowledge_excerpt(),
     }
 
@@ -460,6 +469,23 @@ def collect_ops_context(state, *, profile=None, history_limit: int = 6) -> dict:
     review_store = getattr(state, "live_review_store", None)
     analysis_store = getattr(state, "material_analysis_store", None)
     chat_store = getattr(state, "ops_chat_store", None)
+    knowledge_reference = None
+    if watch_service is not None:
+        try:
+            from app.services.knowledge_base import KnowledgeBaseStore
+
+            overview = KnowledgeBaseStore().overview(
+                watch_service.store.list_logs(limit=5000)
+            )
+            if overview["mode"] == "uploaded":
+                knowledge_reference = {
+                    "type": "uploaded",
+                    "files": [item["name"] for item in overview["files"]],
+                }
+            else:
+                knowledge_reference = overview.get("historical_reference")
+        except Exception:  # noqa: BLE001
+            knowledge_reference = None
     return build_ops_context(
         profile=profile,
         latest_watch=latest_watch,
@@ -468,6 +494,7 @@ def collect_ops_context(state, *, profile=None, history_limit: int = 6) -> dict:
             analysis_store.list_analyses()[-2:] if analysis_store is not None else []
         ),
         history=(chat_store.list_messages(limit=history_limit) if chat_store else []),
+        knowledge_reference=knowledge_reference,
     )
 
 

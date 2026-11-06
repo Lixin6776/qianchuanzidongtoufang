@@ -1589,7 +1589,7 @@ class LiveWatchService:
         # 自检用：大屏头部经常不渲染，读不到「已结束」。这个回调去投放管理页
         # 确认「当前到底有没有在播的场次」，避免把已结束的收场快照当直播中。
         self.session_state_provider = session_state_provider
-        # 你在「决策」窗口设的阈值存在投放策略里，这里取它
+        # 你在「投手知识库」设的阈值存在投放策略里，这里取它
         self.profile_provider = profile_provider
         # 本场结束后：出复盘 → 停盯盘（下一场要手动开）
         self.session_end_handler = session_end_handler
@@ -2122,7 +2122,7 @@ class LiveWatchService:
                     f"口径覆盖：素材口径仅覆盖大屏消耗的 {cover:.0f}%"
                     "（大屏含素材维度之外的消耗；占比类结论的分母是素材口径）"
                 )
-        # 判断阈值：你在「决策」窗口设的 > 本账户分位 > 通用线
+        # 判断阈值：你在「投手知识库」设的 > 本账户分位 > 通用线
         from app.services.thresholds import resolve_thresholds as _resolve_thresholds
 
         profile_for_lines = None

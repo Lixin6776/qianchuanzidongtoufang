@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """报告一致性护栏。
 
 这里拦的是「报告里写了自己都圆不回来的话」这一类问题，都是实际踩过的坑：
@@ -377,12 +376,6 @@ def test_missing_baseline_is_reported_not_silently_skipped():
 
 
 def test_cold_start_note_appears_in_report():
-    from app.services.live_watch import build_watch_report
-
-    # baselines 为空 → 报表自检区要出现"样本不足"说明
-    report = build_watch_report(
-        _event(), [], 2.5, [], baselines={}, audit_notes=None
-    )
     # 直接构造场景：把 skipped 列表塞进 audit_notes 的路径由 service 负责，
     # 这里验证渲染端能显示出来
     from app.services.self_check import render_self_check
@@ -418,7 +411,7 @@ def test_threshold_priority_custom_beats_baseline_beats_default():
     assert "通用参考线" in describe(lines["exposure_view_rate"])
     assert "非本账户" in describe(lines["exposure_view_rate"])
     # 你设的要能在依据里看出来
-    assert "你在决策窗口设定的值" in describe(lines["gpm"])
+    assert "你在投手知识库设定的值" in describe(lines["gpm"])
 
 
 def test_threshold_defaults_when_no_profile_and_no_history():
