@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """直播盯盘：每 N 分钟输出一次数据报表 + 问题 + 调整方案，并记录操作日志。"""
 
 import asyncio
@@ -11,10 +10,10 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
-from app.services.monitor import MonitorEvent
-from app.services.watch_log_store import SqliteWatchLogStore
 from app.services.diagnosis import diagnose
+from app.services.monitor import MonitorEvent
 from app.services.self_check import render_self_check, self_check, verify_data
+from app.services.watch_log_store import SqliteWatchLogStore
 
 BEIJING = ZoneInfo("Asia/Shanghai")
 LIVE_WATCH_PATH = Path(__file__).resolve().parents[3] / ".local" / "live_watch_logs.json"
@@ -464,11 +463,6 @@ def build_adjustments(
     # 1) 素材处置（最具体，先落这里）
     if poor is not None:
         roi_text = f"{float(poor['roi']):.2f}" if poor.get("roi") is not None else "无"
-        target_text = (
-            f"，把预算挪给「{_short(best[0]['name'])}」（素材 ROI {float(best[0]['roi']):.2f}）"
-            if best and best[0].get("roi") is not None
-            else ""
-        )
         base_roi = metrics.roi if metrics.roi is not None else threshold
         cutoff = (base_roi or 0.0) * POOR_MATERIAL_RATIO
         plans.append(
@@ -513,10 +507,14 @@ def build_adjustments(
         and metrics.spend > 0
         and event.spend_delta > max(300.0, metrics.spend * 0.05)
     ):
+        window_text = (
+            f"近 {event.minutes_since_previous:.0f} 分钟"
+            if event.minutes_since_previous
+            else "本周期"
+        )
         plans.append(
-            f"流速：{window_text if (window_text := (f"近 {event.minutes_since_previous:.0f} 分钟" if event.minutes_since_previous else "本周期")) else "本周期"}"
-            f"消耗加快（+{_money(event.spend_delta)}）。先找跑量的那条计划，"
-            "降预算控流速，10 分钟看综合营销 ROI 是否止跌"
+            f"流速：{window_text}消耗加快（+{_money(event.spend_delta)}）。"
+            "先找跑量的那条计划，降预算控流速，10 分钟看综合营销 ROI 是否止跌"
         )
 
     # 5) 承接
@@ -872,6 +870,187 @@ def analyze_operation(op: dict, history: list[dict], metrics) -> str:
     )
 
 
+CORE_QUALITY_FIELDS = {
+    "roi": "综合营销 ROI",
+    "spend": "消耗",
+    "gmv": "净成交金额",
+    "gpm": "GPM",
+    "orders": "成交订单数",
+    "online_viewers": "在线人数",
+    "cpm": "CPM",
+}
+QUALITY_STATUS_LABELS = {
+    "good": "可信",
+    "partial": "字段不完整",
+    "stale": "已过期",
+    "unconfirmed": "场次待确认",
+    "invalid": "来源异常",
+}
+
+
+def _session_token(value) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        raw = str(value).strip()
+        if not raw:
+            return None
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return raw
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(UTC)
+    return parsed.isoformat()
+
+
+def _parse_timestamp(value) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def summarize_session_online(event: MonitorEvent, history: list[dict]) -> dict:
+    """按当前场次计算平均在线；场次未确认时宁可不给值。"""
+    current_session = _session_token(getattr(event, "live_started_at", None))
+    current_room = str(getattr(event.metrics, "room_name", None) or "").strip()
+    current_room_id = str(getattr(event.metrics, "live_room_id", None) or "").strip()
+    if current_session is None:
+        return {
+            "average_online_viewers": None,
+            "online_samples": 0,
+            "online_window_start": None,
+            "online_window_end": None,
+            "session_confirmed": False,
+        }
+
+    rows = list(history)
+    if event.plan_status not in {"ended", "stopped"}:
+        rows.append(
+            {
+                "source": event.source,
+                "captured_at": event.captured_at.isoformat(),
+                "live_started_at": getattr(event, "live_started_at", None),
+                "session_status": event.plan_status,
+                "online_viewers": event.metrics.online_viewers,
+            }
+        )
+
+    samples: list[float] = []
+    sample_times: list[datetime] = []
+    for row in rows:
+        if str(row.get("source") or "") == "cdp-error":
+            continue
+        if _session_token(row.get("live_started_at")) != current_session:
+            continue
+        row_room = str(row.get("room_name") or "").strip()
+        if current_room and row_room and row_room != current_room:
+            continue
+        row_room_id = str(row.get("live_room_id") or "").strip()
+        if current_room_id and row_room_id and row_room_id != current_room_id:
+            continue
+        if str(row.get("session_status") or "") in {"ended", "stopped"}:
+            continue
+        value = row.get("online_viewers")
+        if value is None:
+            continue
+        try:
+            samples.append(float(value))
+        except (TypeError, ValueError):
+            continue
+        observed = _parse_timestamp(row.get("captured_at") or row.get("created_at"))
+        if observed is not None:
+            sample_times.append(observed)
+
+    if not samples:
+        return {
+            "average_online_viewers": None,
+            "online_samples": 0,
+            "online_window_start": None,
+            "online_window_end": None,
+            "session_confirmed": True,
+        }
+
+    return {
+        "average_online_viewers": round(sum(samples) / len(samples), 2),
+        "online_samples": len(samples),
+        "online_window_start": (
+            min(sample_times).isoformat() if sample_times else None
+        ),
+        "online_window_end": max(sample_times).isoformat() if sample_times else None,
+        "session_confirmed": True,
+    }
+
+
+def build_data_quality(event: MonitorEvent, online_summary: dict) -> dict:
+    metrics = event.metrics
+    cpm = _cpm(metrics)
+    values = {
+        "roi": metrics.roi,
+        "spend": metrics.spend,
+        "gmv": metrics.gmv,
+        "gpm": metrics.gpm,
+        "orders": metrics.orders,
+        "online_viewers": metrics.online_viewers,
+        "cpm": cpm,
+    }
+    missing_fields = [
+        label for key, label in CORE_QUALITY_FIELDS.items() if values.get(key) is None
+    ]
+    fields_present = len(CORE_QUALITY_FIELDS) - len(missing_fields)
+    source_confirmed = event.source in {"cdp", "api"}
+    session_confirmed = bool(online_summary.get("session_confirmed"))
+    freshness = str(event.freshness or "unknown")
+    issues: list[str] = []
+    if not source_confirmed:
+        issues.append(f"数据来源不可识别：{event.source or '未知'}")
+    if freshness != "fresh":
+        issues.append(f"数据新鲜度不足：{freshness}")
+    if not session_confirmed:
+        issues.append("当前场次开播时间未确认，不计算本场平均在线")
+    if missing_fields:
+        issues.append("缺失字段：" + "、".join(missing_fields))
+    if session_confirmed and int(online_summary.get("online_samples") or 0) <= 0:
+        issues.append("本场平均在线没有有效样本")
+
+    if not source_confirmed:
+        status = "invalid"
+    elif freshness != "fresh":
+        status = "stale"
+    elif not session_confirmed:
+        status = "unconfirmed"
+    elif missing_fields or int(online_summary.get("online_samples") or 0) <= 0:
+        status = "partial"
+    else:
+        status = "good"
+
+    return {
+        "status": status,
+        "label": QUALITY_STATUS_LABELS[status],
+        "freshness": freshness,
+        "captured_at": event.captured_at.isoformat(),
+        "source": event.source,
+        "source_confirmed": source_confirmed,
+        "session_confirmed": session_confirmed,
+        "session_status": event.plan_status,
+        "fields_present": fields_present,
+        "fields_total": len(CORE_QUALITY_FIELDS),
+        "missing_fields": missing_fields,
+        "issues": issues,
+        "average_online_viewers": online_summary.get("average_online_viewers"),
+        "average_online_samples": int(online_summary.get("online_samples") or 0),
+        "average_online_window_start": online_summary.get("online_window_start"),
+        "average_online_window_end": online_summary.get("online_window_end"),
+    }
+
+
 def build_watch_report(
     event: MonitorEvent,
     history: list[dict],
@@ -887,9 +1066,16 @@ def build_watch_report(
     resume_note: str = "",
     audit_notes: list[str] | None = None,
     threshold_lines: dict | None = None,
+    online_history: list[dict] | None = None,
 ) -> dict:
     now = datetime.now(UTC)
     metrics = event.metrics
+    online_summary = summarize_session_online(
+        event, online_history if online_history is not None else history
+    )
+    data_quality = build_data_quality(event, online_summary)
+    average_online = online_summary.get("average_online_viewers")
+    online_samples = int(online_summary.get("online_samples") or 0)
     previous = history[-1] if history else None
     problems = detect_problems(event, history, roi_target, split)
     adjustments = build_adjustments(event, history, roi_target, split)
@@ -943,8 +1129,11 @@ def build_watch_report(
     status_text = "直播中" if event.plan_status != "ended" else "⚠️ 已结束（读到的是收场快照）"
     header_bits.append(f"状态 {status_text}")
     header_bits.append(f"数据源 {event.source}")
+    header_bits.append(f"数据质量 {data_quality['label']}")
     if event.freshness != "fresh":
         header_bits.append(f"新鲜度 {event.freshness}")
+    if average_online is not None:
+        header_bits.append(f"平均在线 {_fmt_int(average_online)} 人（n={online_samples}）")
 
     lines: list[str] = []
     lines.append(
@@ -964,7 +1153,13 @@ def build_watch_report(
     lines.append(f"| 综合成本 | {spend_cell()} |")
     lines.append(f"| 净成交金额 | {_money(metrics.gmv)} |")
     lines.append(f"| GPM | {_money(metrics.gpm)} |")
-    lines.append(f"| 实时在线人数 | {metrics.online_viewers} |")
+    if average_online is not None:
+        average_online_text = f"{_fmt_int(average_online)}（n={online_samples}）"
+    elif data_quality["session_confirmed"]:
+        average_online_text = "--（本场暂无有效样本）"
+    else:
+        average_online_text = "--（场次未确认，不计算平均在线）"
+    lines.append(f"| 平均在线人数（本场） | {average_online_text} |")
     lines.append(f"| 成交订单数 | {metrics.orders} |")
     lines.append("")
     if split_section:
@@ -1087,7 +1282,10 @@ def build_watch_report(
                      f"订单 {metrics.orders} / ROI {_ratio(metrics.roi)}")
         lines.append(f"- 曝光 {metrics.exposure_count or 0:,} / 观看次数 {metrics.view_count or 0:,} / "
                      f"商品点击 {metrics.product_clicks or 0:,}")
-        lines.append(f"- GPM {_money(metrics.gpm)} / 在线 {metrics.online_viewers}")
+        lines.append(
+            f"- GPM {_money(metrics.gpm)} / 平均在线 {_fmt_int(average_online)}"
+            f"（n={online_samples}）"
+        )
         lines.append("")
         lines[0] = lines[0].replace("## 直播盯盘报表", "## ⚠️ 直播盯盘报表（数据未通过校验）")
         return {
@@ -1108,6 +1306,9 @@ def build_watch_report(
             "gmv": metrics.gmv,
             "gpm": metrics.gpm,
             "online_viewers": metrics.online_viewers,
+            "average_online_viewers": average_online,
+            "online_samples": online_samples,
+            "data_quality": data_quality,
             "orders": metrics.orders,
             "spend_delta": event.spend_delta,
             "cpm": _cpm(metrics),
@@ -1288,6 +1489,9 @@ def build_watch_report(
         "gmv": metrics.gmv,
         "gpm": metrics.gpm,
         "online_viewers": metrics.online_viewers,
+        "average_online_viewers": average_online,
+        "online_samples": online_samples,
+        "data_quality": data_quality,
         "orders": metrics.orders,
         "spend_delta": event.spend_delta,
         "cpm": _cpm(metrics),
@@ -1579,7 +1783,7 @@ class LiveWatchService:
             try:
                 # 任务可能正卡在 CDP / 子进程调用里，取消不会立刻生效 —— 不能死等
                 await asyncio.wait_for(self._task, timeout=5)
-            except (asyncio.CancelledError, asyncio.TimeoutError, Exception):  # noqa: BLE001
+            except (TimeoutError, asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
             self._task = None
         self._resume_gap_seconds = 0
@@ -1920,6 +2124,7 @@ class LiveWatchService:
             resume_note=self._resume_note,
             audit_notes=audit_notes,
             threshold_lines=resolved_lines,
+            online_history=baseline_history,
         )
         # 历史账本回流：把本账户实测的操作净效应附在报表里
         try:
@@ -2120,7 +2325,7 @@ class LiveWatchService:
                 await asyncio.wait_for(
                     self.tick_once(), timeout=self.tick_timeout_seconds
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._last_error = (
                     f"本轮读取超时（>{self.tick_timeout_seconds:.0f} 秒），"
                     "已中断这一轮，下一轮继续"

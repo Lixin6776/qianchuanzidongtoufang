@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import type { LiveWatchReport, LiveWatchStatus } from "../lib/api";
-import { getLiveWatchLogs, getLiveWatchStatus } from "../lib/api";
+import type { LiveWatchDataQuality, LiveWatchReport, LiveWatchStatus } from "../lib/api";
+import { getLiveWatchStatus } from "../lib/api";
 
 type Tone = "success" | "warning" | "danger" | "muted";
 
@@ -30,14 +30,9 @@ function isSnapshot(value: LiveStatusLoadResult): value is LiveStatusSnapshot {
 }
 
 async function loadLatestSnapshot(): Promise<LiveStatusSnapshot> {
-  const logs = await getLiveWatchLogs(1);
-  let status: LiveWatchStatus | null = null;
-  try {
-    status = await getLiveWatchStatus();
-  } catch {
-    status = null;
-  }
-  return { report: logs[0] ?? null, status };
+  // 状态接口和最新报表必须来自同一次读取，避免并发时把上一场报表当成当前场次。
+  const status = await getLiveWatchStatus();
+  return { report: status.latest ?? null, status };
 }
 
 function formatRatio(value: number | null | undefined) {
@@ -61,6 +56,43 @@ function plainText(value: string | undefined) {
     .replace(/`/g, "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .trim();
+}
+
+function sessionComparison(report: LiveWatchReport | null, status: LiveWatchStatus | null) {
+  if (!report?.live_started_at || !status?.live_started_at) return null;
+  const reportTime = new Date(report.live_started_at).getTime();
+  const statusTime = new Date(status.live_started_at).getTime();
+  if (Number.isNaN(reportTime) || Number.isNaN(statusTime)) {
+    return report.live_started_at === status.live_started_at;
+  }
+  return reportTime === statusTime;
+}
+
+function qualityLabel(quality: LiveWatchDataQuality | null, sessionMismatch: boolean) {
+  if (sessionMismatch) return "场次不一致";
+  if (quality?.label) return quality.label;
+  if (quality?.status === "good") return "数据可信";
+  if (quality?.status === "partial") return "字段不完整";
+  if (quality?.status === "stale") return "数据已过期";
+  if (quality?.status === "unconfirmed") return "场次待确认";
+  if (quality?.status === "invalid") return "来源异常";
+  return "待校验";
+}
+
+function qualityTone(quality: LiveWatchDataQuality | null, sessionMismatch: boolean): Tone {
+  if (sessionMismatch || quality?.status === "stale" || quality?.status === "invalid") {
+    return "danger";
+  }
+  if (quality?.status === "partial" || quality?.status === "unconfirmed") return "warning";
+  if (quality?.status === "good") return "success";
+  return "muted";
+}
+
+function freshnessLabel(value: string | undefined) {
+  if (value === "fresh") return "新鲜";
+  if (value === "stale") return "已过期";
+  if (value === "unknown") return "未知";
+  return value || "待校验";
 }
 
 function issueMentions(report: LiveWatchReport | null, pattern: RegExp) {
@@ -163,6 +195,19 @@ export function LiveStatusCard({
   const roomName = report?.room_name || "直播间待读取";
   const observedAt = report?.captured_at || report?.created_at;
   const statusNote = status?.latest?.note ?? "";
+  const dataQuality = report?.data_quality ?? null;
+  const reportSessionMatches = sessionComparison(report, status);
+  const sessionMismatch = reportSessionMatches === false;
+  const sessionConfirmed =
+    !sessionMismatch &&
+    (dataQuality?.session_confirmed ?? Boolean(report?.live_started_at));
+  const qualityStatus = sessionMismatch ? "mismatch" : dataQuality?.status ?? "unknown";
+  const currentQualityLabel = qualityLabel(dataQuality, sessionMismatch);
+  const currentQualityTone = qualityTone(dataQuality, sessionMismatch);
+  const averageOnline =
+    report?.average_online_viewers ?? dataQuality?.average_online_viewers ?? null;
+  const onlineSamples =
+    report?.online_samples ?? dataQuality?.average_online_samples ?? 0;
   const isEnded =
     report?.session_status === "ended" ||
     report?.session_status === "stopped" ||
@@ -176,12 +221,19 @@ export function LiveStatusCard({
   const staleMinutes = Number.isNaN(observedTime)
     ? null
     : Math.max(0, Math.floor((Date.now() - observedTime) / 60_000));
+  const qualityStale = dataQuality?.status === "stale";
   const isStale =
-    status !== null &&
-    !isEnded &&
-    staleMinutes !== null &&
-    staleMinutes > staleAfterMinutes;
-  const snapshotOnly = isEnded || watchStopped || isStale;
+    qualityStale ||
+    (status !== null &&
+      !isEnded &&
+      staleMinutes !== null &&
+      staleMinutes > staleAfterMinutes);
+  const qualityBlocksLive =
+    qualityStale ||
+    dataQuality?.status === "unconfirmed" ||
+    dataQuality?.status === "invalid";
+  const snapshotOnly =
+    isEnded || watchStopped || isStale || sessionMismatch || qualityBlocksLive;
   const metricTone = (tone: Tone): Tone => (snapshotOnly ? "muted" : tone);
   const deltaAvailable =
     !snapshotOnly && report?.spend_delta !== null && report?.spend_delta !== undefined;
@@ -231,9 +283,14 @@ export function LiveStatusCard({
         : "muted"
     },
     {
-      label: snapshotOnly ? "最后在线" : "实时在线",
-      value: report ? numberFormat.format(report.online_viewers) : "--",
-      detail: snapshotOnly ? "最后一次成功采集" : "当前快照",
+      label: "平均在线",
+      value: averageOnline == null ? "--" : numberFormat.format(averageOnline),
+      detail:
+        averageOnline == null
+          ? sessionConfirmed
+            ? "本场暂无有效样本"
+            : "场次未确认，不计算均值"
+          : `本场均值 · ${onlineSamples} 个样本`,
       tone: metricTone(issueTone(report, /在线|人数/))
     },
     {
@@ -248,23 +305,39 @@ export function LiveStatusCard({
     ? "danger"
     : isEnded || watchStopped
       ? "muted"
-      : isStale
+      : sessionMismatch || isStale || qualityStatus === "invalid"
         ? "danger"
-        : overallTone(report);
+        : qualityStatus === "partial" || qualityStatus === "unconfirmed"
+          ? "warning"
+          : overallTone(report);
   const badgeLabel = isEnded
     ? "直播已结束"
     : watchStopped
       ? "盯盘已停止"
-      : isStale
-        ? "数据已过期"
-        : toneLabel(tone);
-  const snapshotNote = isEnded
-    ? "直播已结束，自动盯盘和数据轮询已停止，当前展示最终快照，不再代表实时数据。"
-    : watchStopped
-      ? "盯盘当前未运行，当前展示最后快照，数据可能已过期。"
-      : isStale
-        ? `盯盘仍在运行，但数据已 ${staleMinutes} 分钟未更新；当前读数只代表最后一次成功采集。`
-        : "";
+      : sessionMismatch
+        ? "场次不一致"
+        : qualityStatus === "unconfirmed"
+          ? "场次待确认"
+          : qualityStatus === "invalid"
+            ? "数据源异常"
+            : isStale
+              ? "数据已过期"
+              : qualityStatus === "partial"
+                ? "字段不完整"
+                : toneLabel(tone);
+  const snapshotNote = sessionMismatch
+    ? "最新数据不属于当前场次，已停止把它当作实时盘面；请重新读取当前场次数据。"
+    : qualityStatus === "unconfirmed"
+      ? "当前场次开播时间未确认，无法确认这份数据属于当前场次；不计算本场平均在线，也不做实时判断。"
+      : qualityStatus === "invalid"
+        ? "数据来源不可识别，已停止把这份读数当作实时盘面。"
+        : isEnded
+      ? "直播已结束，自动盯盘和数据轮询已停止，当前展示最终快照，不再代表实时数据。"
+      : watchStopped
+        ? "盯盘当前未运行，当前展示最后快照，数据可能已过期。"
+        : isStale
+          ? `盯盘仍在运行，但数据已 ${staleMinutes} 分钟未更新；当前读数只代表最后一次成功采集。`
+          : "";
   const diagnosticProblem = snapshotOnly
     ? snapshotNote || plainText(status?.last_error) || "当前不是实时数据"
     : error || problem || "本轮未返回异常项";
@@ -272,25 +345,37 @@ export function LiveStatusCard({
     ? "下一场开播后，在「直播盯盘」里手动开始。"
     : watchStopped
       ? "需要继续盯盘时，在「直播盯盘」里开始或恢复。"
-      : isStale
-        ? "先检查数据源连接或点击「立即读取一次」；恢复前不要根据这组数据做投放动作。"
-        : adjustment || "暂无调整建议，继续观察下一周期";
-  const summaryTitle = isEnded
-    ? "直播已结束，停止实时判断"
-    : watchStopped
-      ? "盯盘已停止，不再判断实时状态"
-      : isStale
-        ? "数据已过期，暂停实时判断"
-        : problem || error
-          ? `发现 ${report?.problems?.filter((item) => item.trim()).length ?? 1} 项问题`
-          : "本周期未发现异常";
-  const observedLabel = isEnded
-    ? "最后更新"
-    : watchStopped
-      ? "最后数据"
-      : isStale
-        ? "数据已过期"
-        : "更新于";
+      : sessionMismatch || qualityStatus === "unconfirmed" || qualityStatus === "invalid"
+        ? "先重新读取当前场次；场次、来源和新鲜度确认前，不要根据这组数据做投放动作。"
+        : isStale
+          ? "先检查数据源连接或点击「立即读取一次」；恢复前不要根据这组数据做投放动作。"
+          : adjustment || "暂无调整建议，继续观察下一周期";
+  const summaryTitle = sessionMismatch
+    ? "场次不一致，暂停实时判断"
+    : isEnded
+      ? "直播已结束，停止实时判断"
+      : watchStopped
+        ? "盯盘已停止，不再判断实时状态"
+        : qualityStatus === "unconfirmed"
+          ? "场次待确认，不计算本场均值"
+          : qualityStatus === "invalid"
+            ? "数据源异常，暂停实时判断"
+            : isStale
+              ? "数据已过期，暂停实时判断"
+              : qualityStatus === "partial"
+                ? "字段不完整，结论需要降级"
+                : problem || error
+                  ? `发现 ${report?.problems?.filter((item) => item.trim()).length ?? 1} 项问题`
+                  : "本周期未发现异常";
+  const observedLabel = sessionMismatch
+    ? "最后数据"
+    : isEnded
+      ? "最后更新"
+      : watchStopped
+        ? "最后数据"
+        : isStale
+          ? "数据已过期"
+          : "更新于";
 
   return (
     <section className={`live-status-card live-status-${tone}`} aria-label="实时盯盘状态">
@@ -341,6 +426,20 @@ export function LiveStatusCard({
           </article>
         ))}
       </div>
+
+      {report ? (
+        <div className="live-status-quality" aria-label="数据质量">
+          <span className={`live-status-quality-main live-status-quality-${currentQualityTone}`}>
+            数据质量 {currentQualityLabel}
+          </span>
+          <span>
+            字段 {dataQuality ? `${dataQuality.fields_present}/${dataQuality.fields_total}` : "--"}
+          </span>
+          <span>新鲜度 {freshnessLabel(dataQuality?.freshness)}</span>
+          <span>场次 {sessionMismatch ? "不一致" : sessionConfirmed ? "已确认" : "待确认"}</span>
+          <span>平均在线样本 {onlineSamples}</span>
+        </div>
+      ) : null}
 
       <details className="live-status-diagnostics">
         <summary>

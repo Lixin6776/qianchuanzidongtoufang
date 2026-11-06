@@ -1971,6 +1971,38 @@ body {
   .chat-main > .main-tool-window { height: auto; min-height: 460px; }
 }
 
+/* Data trust strip: compact evidence beside the live metrics */
+.live-status-quality {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  color: #8da4c4;
+  font-size: 11px;
+}
+.live-status-quality > span {
+  padding: 3px 7px;
+  border: 1px solid rgba(126, 157, 199, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  white-space: nowrap;
+}
+.live-status-quality-main { font-weight: 600; }
+.live-status-quality-success {
+  border-color: rgba(52, 211, 153, 0.24) !important;
+  color: #75e5c0 !important;
+}
+.live-status-quality-warning {
+  border-color: rgba(251, 191, 36, 0.24) !important;
+  color: #ffd27a !important;
+}
+.live-status-quality-danger {
+  border-color: rgba(251, 113, 133, 0.26) !important;
+  color: #ff9aaa !important;
+}
+.live-status-quality-muted { color: #a6b6ce !important; }
+
 /* Ended live state: keep the final snapshot, stop the live signal */
 .live-status-muted { border-left-color: #64748b; }
 .live-status-pulse.is-ended {

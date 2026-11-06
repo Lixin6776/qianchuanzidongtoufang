@@ -177,8 +177,9 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - **Mobile:** 3-column tool grid with the same icon and label vocabulary.
 
 ### Live Telemetry Card
-- Dark navy frame with five compact metrics: comprehensive marketing ROI, GPM, recent spend, live viewers, CPM.
+- Dark navy frame with five compact metrics: comprehensive marketing ROI, GPM, recent spend, current-session average viewers, CPM.
 - ROI and GPM carry the strongest visual weight.
+- A compact data-quality strip shows field completeness, freshness, session confirmation, and average-viewer sample count.
 - Problems and recommendations are summarized in one compact diagnostic row and expand on demand.
 - Status is communicated with label plus color, never color alone.
 - When a session ends, the card stops live animation and states that polling has stopped.

@@ -21,7 +21,25 @@ const report: LiveWatchReport = {
   roi_target: 2.8,
   exposure_view_rate: 3.48,
   room_name: "质润官方旗舰店",
+  live_started_at: "2026-10-20T13:00:00+08:00",
   session_status: "active",
+  average_online_viewers: 28.5,
+  online_samples: 6,
+  data_quality: {
+    status: "good",
+    freshness: "fresh",
+    captured_at: "2026-10-20T14:24:49+08:00",
+    source_confirmed: true,
+    session_confirmed: true,
+    session_status: "active",
+    fields_present: 7,
+    fields_total: 7,
+    missing_fields: [],
+    issues: [],
+    average_online_viewers: 28.5,
+    average_online_samples: 6,
+    average_online_window_start: "2026-10-20T13:05:00+08:00"
+  },
   verify_passed: true,
   problems: ["综合营销 ROI 未达标：当前 2.19，目标 2.80，缺口 0.61"],
   adjustments: ["先收缩低效素材，10～20 分钟后复核 ROI"],
@@ -36,7 +54,7 @@ test("live status card surfaces the latest room and operator metrics", () => {
     "综合营销 ROI",
     "GPM",
     "近5分钟消耗金额",
-    "实时在线",
+    "平均在线",
     "CPM"
   ]);
   expect(screen.getByLabelText("目标达成 78%")).toBeInTheDocument();
@@ -46,6 +64,12 @@ test("live status card surfaces the latest room and operator metrics", () => {
   expect(screen.getByText("2.19")).toBeInTheDocument();
   expect(screen.getByText("¥86.88")).toBeInTheDocument();
   expect(screen.getByText("¥3,912.69")).toBeInTheDocument();
+  expect(screen.getByText("28.5")).toBeInTheDocument();
+  expect(screen.getByText("本场均值 · 6 个样本")).toBeInTheDocument();
+  expect(screen.getByText("数据质量 数据可信")).toBeInTheDocument();
+  expect(screen.getByText("字段 7/7")).toBeInTheDocument();
+  expect(screen.getByText("新鲜度 新鲜")).toBeInTheDocument();
+  expect(screen.getByText("场次 已确认")).toBeInTheDocument();
   expect(screen.getByText(/综合营销 ROI 未达标/)).toBeInTheDocument();
   expect(screen.getByText(/先收缩低效素材/)).toBeInTheDocument();
 });
@@ -132,4 +156,101 @@ test("ended note is recognized even when structured status is missing", async ()
   expect(screen.getAllByText(/不再代表实时数据/).length).toBeGreaterThan(0);
   expect(screen.getByText("已结束，不再计算实时增量")).toBeInTheDocument();
   expect(screen.queryByText("¥0")).not.toBeInTheDocument();
+});
+
+test("session mismatch blocks the latest report from being treated as live", async () => {
+  const staleSessionReport = {
+    ...report,
+    live_started_at: "2026-10-20T13:00:00+08:00"
+  };
+  const status = {
+    running: true,
+    desired_running: true,
+    interval_seconds: 300,
+    tick_count: 2,
+    last_run: "2026-10-20T14:30:00+08:00",
+    live_started_at: "2026-10-20T15:00:00+08:00",
+    reports: 2,
+    last_error: "",
+    latest: staleSessionReport
+  };
+  const load = vi.fn().mockResolvedValue({ report: staleSessionReport, status });
+
+  render(<LiveStatusCard load={load} refreshMs={0} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(screen.getByText("场次不一致")).toBeInTheDocument();
+  expect(screen.getAllByText(/最新数据不属于当前场次/).length).toBeGreaterThan(0);
+});
+
+test("backend stale quality blocks live judgment even if the timestamp looks recent", async () => {
+  const staleReport = {
+    ...report,
+    captured_at: new Date().toISOString(),
+    data_quality: {
+      ...report.data_quality!,
+      status: "stale" as const,
+      freshness: "stale"
+    }
+  };
+  const status = {
+    running: true,
+    desired_running: true,
+    interval_seconds: 300,
+    tick_count: 2,
+    last_run: new Date().toISOString(),
+    live_started_at: report.live_started_at,
+    reports: 2,
+    last_error: "",
+    latest: staleReport
+  };
+  const load = vi.fn().mockResolvedValue({ report: staleReport, status });
+
+  render(<LiveStatusCard load={load} refreshMs={0} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(screen.getByText("数据已过期")).toBeInTheDocument();
+  expect(screen.getAllByText(/当前读数只代表最后一次成功采集/).length).toBeGreaterThan(0);
+});
+
+test("unconfirmed session blocks live judgment and average online", async () => {
+  const unconfirmed = {
+    ...report,
+    live_started_at: null,
+    average_online_viewers: null,
+    online_samples: 0,
+    data_quality: {
+      ...report.data_quality!,
+      status: "unconfirmed" as const,
+      session_confirmed: false,
+      average_online_viewers: null,
+      average_online_samples: 0,
+      issues: ["当前场次开播时间未确认，不计算本场平均在线"]
+    }
+  };
+  const status = {
+    running: true,
+    desired_running: true,
+    interval_seconds: 300,
+    tick_count: 2,
+    last_run: new Date().toISOString(),
+    live_started_at: "2026-10-20T15:00:00+08:00",
+    reports: 2,
+    last_error: "",
+    latest: unconfirmed
+  };
+  const load = vi.fn().mockResolvedValue({ report: unconfirmed, status });
+
+  render(<LiveStatusCard load={load} refreshMs={0} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(screen.getByText("场次待确认")).toBeInTheDocument();
+  expect(screen.getByText("场次未确认，不计算均值")).toBeInTheDocument();
+  expect(screen.getAllByText(/场次开播时间未确认/).length).toBeGreaterThan(0);
 });

@@ -524,6 +524,25 @@ export type CdpConnectionStatus = {
   message?: string;
 };
 
+export type LiveWatchDataQuality = {
+  status: "good" | "partial" | "stale" | "unconfirmed" | "invalid";
+  label?: string;
+  freshness: string;
+  captured_at: string;
+  source?: string;
+  source_confirmed: boolean;
+  session_confirmed: boolean;
+  session_status?: string | null;
+  fields_present: number;
+  fields_total: number;
+  missing_fields: string[];
+  issues: string[];
+  average_online_viewers?: number | null;
+  average_online_samples?: number;
+  average_online_window_start?: string | null;
+  average_online_window_end?: string | null;
+};
+
 export type LiveWatchReport = {
   id: string;
   created_at: string;
@@ -536,6 +555,11 @@ export type LiveWatchReport = {
   gpm: number | null;
   cpm?: number | null;
   online_viewers: number;
+  average_online_viewers?: number | null;
+  online_samples?: number;
+  online_window_start?: string | null;
+  online_window_end?: string | null;
+  data_quality?: LiveWatchDataQuality | null;
   orders: number;
   spend_delta: number | null;
   roi_target: number | null;
