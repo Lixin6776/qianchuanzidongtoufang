@@ -64,6 +64,62 @@ def _problem_category(problem: str) -> str:
     return ""
 
 
+def _priority_playbook(category: str) -> dict:
+    playbooks = {
+        "data_quality": {
+            "action_title": "先恢复可信数据",
+            "steps": ["重新读取当前场次", "确认来源、新鲜度和场次一致", "数据可信前不执行投放动作"],
+            "success_criteria": "数据质量恢复为可信，场次和来源确认一致",
+            "stop_condition": "数据质量持续异常时暂停所有投放判断",
+        },
+        "roi": {
+            "action_title": "收缩低效消耗，争取 ROI 回到目标",
+            "steps": ["收缩低效素材或追投预算", "10～20 分钟后复核 ROI", "继续下降则停止并回滚"],
+            "success_criteria": "ROI 较动作前改善至少 0.10，或达到计划目标",
+            "stop_condition": "ROI 继续下降至少 0.10，或数据质量异常时停止",
+        },
+        "assist": {
+            "action_title": "下调追投占比，把量让给基础计划",
+            "steps": ["追投整体下调 20%～30%", "观察基础计划消耗是否回升", "10 分钟后复核追投占比"],
+            "success_criteria": "追投占比下降且基础消耗回升",
+            "stop_condition": "基础消耗未回升或 ROI 明显恶化时停止",
+        },
+        "material": {
+            "action_title": "处理高消耗低效素材，但不要直接删除",
+            "steps": ["确认是否持续多天低跑量", "不直接删除高跑量素材", "必要时下调 ROI 目标刺激起量"],
+            "success_criteria": "低效素材不再继续放大，ROI 止跌",
+            "stop_condition": "素材继续放大且 ROI 恶化时停止并回滚",
+        },
+        "conversion": {
+            "action_title": "先修承接，再考虑加量",
+            "steps": ["检查直播画面、排品和话术", "10 分钟后复核 GPM 和转化", "承接未稳前不加量"],
+            "success_criteria": "GPM 或观看成交转化率提升至少 5%",
+            "stop_condition": "承接继续恶化或在线人数持续下降时停止",
+        },
+        "cpm": {
+            "action_title": "控制高价流量，先降拿量成本",
+            "steps": ["定位高 CPM 计划或素材", "收缩高成本流量", "复核 CPM 与 ROI 是否同步改善"],
+            "success_criteria": "CPM 回落且 ROI 不恶化",
+            "stop_condition": "CPM 继续升高或消耗失控时停止",
+        },
+        "spend": {
+            "action_title": "定位放量计划，控制消耗流速",
+            "steps": ["找到消耗突然放量的计划", "降低预算或追投调控", "10 分钟后复核流速和 ROI"],
+            "success_criteria": "消耗流速回落且 ROI 止跌",
+            "stop_condition": "消耗继续失控或 ROI 快速下降时停止",
+        },
+    }
+    return playbooks.get(
+        category,
+        {
+            "action_title": "核对证据后执行单一动作",
+            "steps": ["核对完整报表和操作对象", "只执行一个最小动作", "10 分钟后复核结果"],
+            "success_criteria": "目标指标改善且数据质量可信",
+            "stop_condition": "指标继续恶化或数据质量异常时停止",
+        },
+    )
+
+
 def _action_category(action: str) -> str:
     text = action.lstrip()
     upper = text.upper()
@@ -118,12 +174,14 @@ def build_priority_actions(
             for item in (data_quality or {}).get("issues") or []
             if str(item).strip()
         ]
+        playbook = _priority_playbook("data_quality")
         return [
             {
                 "rank": 1,
                 "severity": "critical",
                 "problem": "数据质量不可信：" + ("；".join(issues) or "场次、来源或新鲜度未确认"),
                 "action": "先恢复并核验当前场次数据：重新读取并确认来源、新鲜度和场次；数据可信前不执行投放动作",
+                **playbook,
                 "verify_minutes": 10,
             }
         ]
@@ -140,12 +198,14 @@ def build_priority_actions(
             continue
         seen_problems.add(problem)
         action = _match_action(problem, clean_adjustments, used_adjustments)
+        playbook = _priority_playbook(_problem_category(problem))
         items.append(
             {
                 "rank": len(items) + 1,
                 "severity": _priority_severity(problem, index, level),
                 "problem": problem,
                 "action": action,
+                **playbook,
                 "verify_minutes": 10,
             }
         )
@@ -244,11 +304,15 @@ def build_live_watch_task(
         if report.get("level") == "action" or quality_status not in {"good", "unknown"}
         else "medium"
     )
+    action_title = str(top_action.get("action_title") or action)
+    steps = [str(step) for step in top_action.get("steps") or [] if str(step).strip()]
     payload = OpsTaskCreate(
-        title=f"执行：{_short(action)}",
+        title=f"执行：{_short(action_title)}",
         description=(
             f"问题：{problem}\n"
-            f"建议动作：{action}\n"
+            f"建议动作：{action_title}\n"
+            f"执行步骤：{'；'.join(steps) if steps else action}\n"
+            f"完整说明：{action}\n"
             f"数据依据：ROI {report.get('roi')} / GPM {report.get('gpm')} / "
             f"平均在线 {report.get('average_online_viewers')} / "
             f"近5分钟消耗 {report.get('spend_delta')}\n"
@@ -265,6 +329,10 @@ def build_live_watch_task(
             "report_id": report.get("id"),
             "problem": problem,
             "action": action,
+            "action_title": action_title,
+            "steps": steps,
+            "priority_success_criteria": top_action.get("success_criteria"),
+            "priority_stop_condition": top_action.get("stop_condition"),
             "focus_metric": focus_metric,
             "priority_action": top_action,
             "baseline": baseline,

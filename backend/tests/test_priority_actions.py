@@ -26,6 +26,10 @@ def test_priority_actions_keep_only_top_three_with_unique_actions():
     assert items[0]["action"] == "综合营销 ROI：10～20 分钟后复核目标"
     assert all(item["verify_minutes"] == 10 for item in items)
     assert len({item["action"] for item in items}) == 3
+    assert items[0]["action_title"] == "收缩低效消耗，争取 ROI 回到目标"
+    assert len(items[0]["steps"]) == 3
+    assert "ROI" in items[0]["success_criteria"]
+    assert "停止" in items[0]["stop_condition"]
 
 
 def test_untrusted_data_has_only_one_recovery_action():
@@ -44,6 +48,8 @@ def test_untrusted_data_has_only_one_recovery_action():
     assert "数据" in items[0]["problem"]
     assert "恢复" in items[0]["action"] or "核验" in items[0]["action"]
     assert "收缩素材" not in items[0]["action"]
+    assert items[0]["action_title"] == "先恢复可信数据"
+    assert len(items[0]["steps"]) == 3
 
 
 def test_task_builder_uses_the_top_priority_action():
@@ -66,6 +72,10 @@ def test_task_builder_uses_the_top_priority_action():
                 "severity": "high",
                 "problem": "综合营销 ROI 未达标",
                 "action": "先收缩低效素材",
+                "action_title": "收缩低效消耗，争取 ROI 回到目标",
+                "steps": ["收缩低效素材", "10 分钟后复核 ROI", "继续下降则停止回滚"],
+                "success_criteria": "ROI 改善至少 0.10",
+                "stop_condition": "ROI 继续下降时停止",
                 "verify_minutes": 10,
             }
         ],
@@ -75,7 +85,8 @@ def test_task_builder_uses_the_top_priority_action():
 
     assert task.context["problem"] == "综合营销 ROI 未达标"
     assert task.context["action"] == "先收缩低效素材"
-    assert "收缩低效素材" in task.title
+    assert task.title == "执行：收缩低效消耗，争取 ROI 回到目标"
+    assert task.context["action_title"] == "收缩低效消耗，争取 ROI 回到目标"
 
 def test_priority_actions_match_by_category_when_lists_are_reordered():
     items = build_priority_actions(

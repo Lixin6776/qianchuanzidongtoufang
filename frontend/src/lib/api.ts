@@ -537,6 +537,10 @@ export type LivePriorityAction = {
   severity: "critical" | "high" | "medium" | "low" | string;
   problem: string;
   action: string;
+  action_title?: string;
+  steps?: string[];
+  success_criteria?: string;
+  stop_condition?: string;
   verify_minutes: number;
 };
 

@@ -380,6 +380,8 @@ export function LiveStatusCard({
               severity: report?.level === "action" ? "high" : "medium",
               problem: problem || "当前周期异常",
               action: actionText,
+              action_title: actionText,
+              steps: [],
               verify_minutes: 10
             }
           ]
@@ -524,7 +526,24 @@ export function LiveStatusCard({
                 <span className="live-priority-rank">P{item.rank}</span>
                 <div className="live-priority-copy">
                   <strong>{item.problem}</strong>
-                  <p>{item.action}</p>
+                  <p className="live-priority-action-title">{item.action_title || item.action}</p>
+                  {item.steps?.length ? (
+                    <ol className="live-priority-steps">
+                      {item.steps.slice(0, 3).map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                  <details className="live-priority-details">
+                    <summary>依据与止损</summary>
+                    <p>{item.action}</p>
+                    {item.success_criteria ? (
+                      <span>成功标准：{item.success_criteria}</span>
+                    ) : null}
+                    {item.stop_condition ? (
+                      <span>止损条件：{item.stop_condition}</span>
+                    ) : null}
+                  </details>
                 </div>
                 <em>{item.verify_minutes} 分钟验证</em>
                 {index === 0 ? (

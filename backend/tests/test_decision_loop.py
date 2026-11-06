@@ -53,7 +53,8 @@ def test_build_live_watch_task_persists_action_baseline_and_guardrails():
     assert isinstance(payload, OpsTaskCreate)
     assert payload.source_type == "live_watch"
     assert payload.source_id == "watch-1"
-    assert "收缩低效素材" in payload.title
+    assert "ROI 回到目标" in payload.title
+    assert payload.context["action_title"] == "收缩低效消耗，争取 ROI 回到目标"
     assert "10 分钟" in payload.success_criteria
     assert "数据质量" in payload.stop_condition
     assert payload.due_at == NOW + timedelta(minutes=10)

@@ -2220,6 +2220,41 @@ body {
   font-size: 11px;
   line-height: 1.45;
 }
+.live-priority-copy .live-priority-action-title {
+  color: #d7e8ff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.live-priority-steps {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding-left: 17px;
+  color: #a9bdd9;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.live-priority-details {
+  margin-top: 5px;
+  color: #7e96b8;
+  font-size: 10px;
+}
+.live-priority-details > summary {
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+}
+.live-priority-details > summary::-webkit-details-marker { display: none; }
+.live-priority-details > summary::after { margin-left: 4px; content: "▾"; }
+.live-priority-details[open] > summary::after { content: "▴"; }
+.live-priority-details p,
+.live-priority-details span {
+  display: block;
+  margin: 4px 0 0;
+  color: #91a8c8;
+  font-size: 10px;
+  line-height: 1.5;
+}
 .live-priority-item > em {
   grid-column: 2;
   color: #748daf;

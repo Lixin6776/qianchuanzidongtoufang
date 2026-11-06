@@ -49,6 +49,10 @@ const report: LiveWatchReport = {
       severity: "high",
       problem: "综合营销 ROI 未达标",
       action: "先收缩低效素材，10～20 分钟后复核 ROI",
+      action_title: "收缩低效消耗，争取 ROI 回到目标",
+      steps: ["收缩低效素材或追投预算", "10～20 分钟后复核 ROI", "继续下降则停止并回滚"],
+      success_criteria: "ROI 改善至少 0.10 或达到目标",
+      stop_condition: "ROI 继续下降或数据质量异常时停止",
       verify_minutes: 10
     },
     {
@@ -56,6 +60,10 @@ const report: LiveWatchReport = {
       severity: "medium",
       problem: "GPM 低于本账户基线",
       action: "先核对承接话术，10 分钟后复核 GPM",
+      action_title: "先修承接，再考虑加量",
+      steps: ["检查直播画面和话术", "10 分钟后复核 GPM", "承接未稳前不加量"],
+      success_criteria: "GPM 提升至少 5%",
+      stop_condition: "承接继续恶化时停止",
       verify_minutes: 10
     },
     {
@@ -63,6 +71,10 @@ const report: LiveWatchReport = {
       severity: "medium",
       problem: "素材消耗集中度过高",
       action: "补充一条测试素材，观察消耗集中度",
+      action_title: "补充测试素材，降低集中度",
+      steps: ["补充一条测试素材", "观察消耗集中度", "不直接删除高跑量素材"],
+      success_criteria: "素材消耗集中度下降",
+      stop_condition: "ROI 明显恶化时停止",
       verify_minutes: 10
     },
     {
@@ -304,7 +316,11 @@ test("priority board shows at most three unique actions", () => {
 
   expect(screen.getByText("本轮先做 3 件事")).toBeInTheDocument();
   expect(screen.getByText("综合营销 ROI 未达标")).toBeInTheDocument();
-  expect(screen.getAllByText("先收缩低效素材，10～20 分钟后复核 ROI").length).toBeGreaterThan(0);
+  expect(screen.getByText("收缩低效消耗，争取 ROI 回到目标")).toBeInTheDocument();
+  expect(screen.getByText("收缩低效素材或追投预算")).toBeInTheDocument();
+  expect(screen.getByText("10～20 分钟后复核 ROI")).toBeInTheDocument();
+  expect(screen.getByText("先修承接，再考虑加量")).toBeInTheDocument();
+  expect(screen.getByText("补充测试素材，降低集中度")).toBeInTheDocument();
   expect(screen.getByText("GPM 低于本账户基线")).toBeInTheDocument();
   expect(screen.getByText("先核对承接话术，10 分钟后复核 GPM")).toBeInTheDocument();
   expect(screen.getByText("素材消耗集中度过高")).toBeInTheDocument();
