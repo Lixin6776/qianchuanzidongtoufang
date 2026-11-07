@@ -39,21 +39,28 @@ class OpsTaskService:
         self.session.refresh(item)
         return item
 
-    def create_from_live_watch(self, report: dict) -> OpsTask:
+    def create_from_live_watch(self, report: dict, priority_index: int = 0) -> OpsTask:
         report_id = str(report.get("id") or "").strip()
         if not report_id:
             raise ValueError("Watch report id is required")
-        existing = self.session.scalar(
-            select(OpsTask).where(
-                OpsTask.source_type == "live_watch",
-                OpsTask.source_id == report_id,
+        if priority_index < 0:
+            raise ValueError("Priority index must be non-negative")
+        existing_tasks = list(
+            self.session.scalars(
+                select(OpsTask).where(
+                    OpsTask.source_type == "live_watch",
+                    OpsTask.source_id == report_id,
+                )
             )
         )
-        if existing is not None:
-            return existing
+        for task in existing_tasks:
+            if int((task.context or {}).get("priority_index", 0)) == priority_index:
+                return task
         from app.services.decision_loop import build_live_watch_task
 
-        return self.create(build_live_watch_task(report))
+        return self.create(
+            build_live_watch_task(report, priority_index=priority_index)
+        )
 
     def get(self, task_id: str) -> OpsTask:
         item = self.session.get(OpsTask, task_id)

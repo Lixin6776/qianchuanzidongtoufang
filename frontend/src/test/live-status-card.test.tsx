@@ -305,10 +305,24 @@ test("creates a 10-minute verification task from the current report", async () =
   });
 
   render(<LiveStatusCard report={report} refreshMs={0} createTask={createTask} />);
-  fireEvent.click(screen.getByRole("button", { name: "生成 10 分钟验证任务" }));
+  fireEvent.click(screen.getByRole("button", { name: "生成 P1 验证任务" }));
 
-  await waitFor(() => expect(createTask).toHaveBeenCalledWith("watch-1"));
-  await waitFor(() => expect(screen.getByText(/已生成验证任务/)).toBeInTheDocument());
+  await waitFor(() => expect(createTask).toHaveBeenCalledWith("watch-1", 0));
+  await waitFor(() => expect(screen.getByText(/已生成 P1 验证任务/)).toBeInTheDocument());
+});
+
+test("each priority can create its own verification task", async () => {
+  const createTask = vi.fn().mockResolvedValue({
+    id: "task-2",
+    status: "open",
+    due_at: "2026-10-20T14:35:00+08:00"
+  });
+
+  render(<LiveStatusCard report={report} refreshMs={0} createTask={createTask} />);
+  fireEvent.click(screen.getByRole("button", { name: "生成 P2 验证任务" }));
+
+  await waitFor(() => expect(createTask).toHaveBeenCalledWith("watch-1", 1));
+  await waitFor(() => expect(screen.getByText(/已生成 P2 验证任务/)).toBeInTheDocument());
 });
 
 test("priority board shows at most three unique actions", () => {

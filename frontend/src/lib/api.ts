@@ -228,10 +228,11 @@ export async function createOpsTask(payload: Record<string, unknown>) {
   return response.json();
 }
 
-export async function createOpsTaskFromLiveWatch(reportId: string) {
-  const response = await fetch(`${API_BASE}/api/ops-tasks/from-live-watch/${reportId}`, {
-    method: "POST"
-  });
+export async function createOpsTaskFromLiveWatch(reportId: string, priorityIndex = 0) {
+  const response = await fetch(
+    `${API_BASE}/api/ops-tasks/from-live-watch/${reportId}?priority_index=${priorityIndex}`,
+    { method: "POST" }
+  );
   if (!response.ok) throw new Error("Live watch task creation failed");
   return response.json();
 }

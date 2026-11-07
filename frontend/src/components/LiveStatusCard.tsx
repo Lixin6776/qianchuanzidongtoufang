@@ -146,15 +146,15 @@ export function LiveStatusCard({
   /** 测试或上层注入时使用；不传则由组件每 30 秒读取最新盯盘记录和运行状态。 */
   report?: LiveWatchReport | null;
   load?: () => Promise<LiveStatusLoadResult>;
-  createTask?: (reportId: string) => Promise<CreatedTask>;
+  createTask?: (reportId: string, priorityIndex: number) => Promise<CreatedTask>;
   refreshMs?: number;
 }) {
   const [report, setReport] = useState<LiveWatchReport | null>(providedReport ?? null);
   const [status, setStatus] = useState<LiveWatchStatus | null>(null);
   const [loading, setLoading] = useState(providedReport === undefined);
   const [error, setError] = useState<string | null>(null);
-  const [taskBusy, setTaskBusy] = useState(false);
-  const [createdTask, setCreatedTask] = useState<CreatedTask | null>(null);
+  const [taskBusyIndex, setTaskBusyIndex] = useState<number | null>(null);
+  const [createdTasks, setCreatedTasks] = useState<Record<number, CreatedTask>>({});
   const [taskError, setTaskError] = useState("");
 
   useEffect(() => {
@@ -202,7 +202,8 @@ export function LiveStatusCard({
   }, [providedReport, load, refreshMs]);
 
   useEffect(() => {
-    setCreatedTask(null);
+    setCreatedTasks({});
+    setTaskBusyIndex(null);
     setTaskError("");
   }, [report?.id, providedReport]);
 
@@ -386,28 +387,23 @@ export function LiveStatusCard({
             }
           ]
         : [];
-  const taskDueText = createdTask?.due_at
-    ? new Date(createdTask.due_at).toLocaleTimeString("zh-CN", {
-        hour: "2-digit",
-        minute: "2-digit"
-      })
-    : "";
   const canCreateTask =
     Boolean(report?.id && priorityActions.length) &&
     !snapshotOnly &&
     qualityStatus !== "partial";
 
-  async function handleCreateTask() {
-    if (!report?.id || !canCreateTask || taskBusy) return;
-    setTaskBusy(true);
+  async function handleCreateTask(priorityIndex: number) {
+    if (!report?.id || !canCreateTask || taskBusyIndex !== null) return;
+    const rank = priorityActions[priorityIndex]?.rank ?? priorityIndex + 1;
+    setTaskBusyIndex(priorityIndex);
     setTaskError("");
     try {
-      const task = await createTask(report.id);
-      setCreatedTask(task);
+      const task = await createTask(report.id, priorityIndex);
+      setCreatedTasks((current) => ({ ...current, [rank]: task }));
     } catch {
-      setTaskError("生成验证任务失败，请检查本地服务。");
+      setTaskError(`生成 P${rank} 验证任务失败，请检查本地服务。`);
     } finally {
-      setTaskBusy(false);
+      setTaskBusyIndex(null);
     }
   }
 
@@ -546,16 +542,22 @@ export function LiveStatusCard({
                   </details>
                 </div>
                 <em>{item.verify_minutes} 分钟验证</em>
-                {index === 0 ? (
-                  <button
-                    className="button-primary"
-                    type="button"
-                    disabled={!canCreateTask || taskBusy || Boolean(createdTask)}
-                    onClick={() => void handleCreateTask()}
-                  >
-                    {taskBusy ? "创建中" : createdTask ? "已生成任务" : "生成 10 分钟验证任务"}
-                  </button>
-                ) : null}
+                <button
+                  className={index === 0 ? "button-primary" : "button-outline"}
+                  type="button"
+                  disabled={
+                    !canCreateTask ||
+                    taskBusyIndex !== null ||
+                    Boolean(createdTasks[item.rank])
+                  }
+                  onClick={() => void handleCreateTask(index)}
+                >
+                  {taskBusyIndex === index
+                    ? "创建中"
+                    : createdTasks[item.rank]
+                      ? `已生成 P${item.rank} 任务`
+                      : `生成 P${item.rank} 验证任务`}
+                </button>
               </article>
             ))}
           </div>
@@ -563,11 +565,17 @@ export function LiveStatusCard({
             <small>
               生成任务会保存动作前基线，并在 10 / 30 分钟核对数据；执行仍由你人工确认。
             </small>
-            {createdTask ? (
-              <em className="live-action-success" aria-live="polite">
-                已生成验证任务{taskDueText ? ` · 截止 ${taskDueText}` : ""}
+            {Object.entries(createdTasks).map(([rank, task]) => (
+              <em className="live-action-success" aria-live="polite" key={rank}>
+                已生成 P{rank} 验证任务
+                {task.due_at
+                  ? ` · 截止 ${new Date(task.due_at).toLocaleTimeString("zh-CN", {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}`
+                  : ""}
               </em>
-            ) : null}
+            ))}
             {taskError ? <em className="live-action-error">{taskError}</em> : null}
           </footer>
         </section>

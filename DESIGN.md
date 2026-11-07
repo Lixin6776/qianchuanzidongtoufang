@@ -194,7 +194,7 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - The live status card collapses the report into at most three highest-priority problems, ranked P1–P3.
 - Each problem has exactly one action and one verification window; unrelated actions are not mixed into the same item.
 - Each item uses a short action title plus no more than three execution steps; full evidence, success criteria, and stop conditions stay collapsed.
-- The first priority can create an auditable task that saves the pre-action baseline and checks results at 10 and 30 minutes.
+- Each priority can create its own auditable task that saves the pre-action baseline and checks its matching metric at 10 and 30 minutes.
 - When data quality is not trusted, the board collapses to a single recovery action and does not show fabricated business actions.
 - Task creation never executes an account write; it creates an operations task for human confirmation.
 

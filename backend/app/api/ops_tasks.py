@@ -1,7 +1,7 @@
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -54,13 +54,14 @@ def create_task_from_live_watch(
     report_id: str,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
+    priority_index: int = Query(default=0, ge=0),
 ):
     report = request.app.state.live_watch_service.store.get(report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Live watch report not found")
     service = OpsTaskService(db)
     try:
-        task = service.create_from_live_watch(report)
+        task = service.create_from_live_watch(report, priority_index)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     reports = request.app.state.live_watch_service.store.list_logs(limit=5000)

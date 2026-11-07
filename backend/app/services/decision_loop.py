@@ -12,8 +12,19 @@ _METRIC_LABELS = {
     "gpm": "GPM",
     "average_online_viewers": "平均在线",
     "spend_delta": "近5分钟消耗",
+    "assist_share": "追投/调控占比",
+    "cpm": "CPM",
     "data_quality": "数据质量",
 }
+
+
+def _numeric(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _as_datetime(value: Any) -> datetime | None:
@@ -231,6 +242,27 @@ def _focus_metric(report: dict) -> str:
     return "roi"
 
 
+def _focus_metric_from_priority(problem: str) -> str:
+    category = _problem_category(problem)
+    return {
+        "roi": "roi",
+        "material": "roi",
+        "assist": "assist_share",
+        "conversion": "gpm",
+        "cpm": "cpm",
+        "spend": "spend_delta",
+    }.get(category, "roi")
+
+
+def _assist_share(report: dict) -> float | None:
+    split = report.get("spend_split") or {}
+    basic = _numeric(split.get("basic_spend"))
+    assist = _numeric(split.get("assist_spend"))
+    if basic is None or assist is None or basic + assist <= 0:
+        return None
+    return assist / (basic + assist) * 100
+
+
 def _success_and_stop(report: dict, focus_metric: str, baseline: dict) -> tuple[str, str]:
     value = baseline.get(focus_metric)
     target = report.get("roi_target")
@@ -249,6 +281,13 @@ def _success_and_stop(report: dict, focus_metric: str, baseline: dict) -> tuple[
         )
         return success, stop
     label = _METRIC_LABELS.get(focus_metric, focus_metric)
+    if focus_metric in {"assist_share", "cpm"}:
+        success = f"10 分钟内 {label} 较动作前下降至少 5%，且下一轮数据质量为可信"
+        stop = (
+            f"若 10 分钟内 {label} 继续上升至少 5%、数据质量非可信或场次不一致，"
+            "停止动作并回滚；30 分钟仍未改善按失败处理"
+        )
+        return success, stop
     success = f"10 分钟内 {label} 较动作前提升至少 5%，且下一轮数据质量为可信"
     stop = (
         f"若 10 分钟内 {label} 继续下降至少 5%、数据质量非可信或场次不一致，"
@@ -261,6 +300,7 @@ def build_live_watch_task(
     report: dict,
     *,
     now: datetime | None = None,
+    priority_index: int = 0,
 ) -> OpsTaskCreate:
     """把一份盯盘报表转成带基线、验证窗口和止损条件的运营任务。"""
     moment = (now or datetime.now(UTC)).astimezone(UTC)
@@ -273,20 +313,30 @@ def build_live_watch_task(
     priority_actions = report.get("priority_actions") or build_priority_actions(
         problems, adjustments, quality, level=str(report.get("level") or "normal")
     )
-    top_action = priority_actions[0] if priority_actions else {}
+    if priority_actions and not 0 <= priority_index < len(priority_actions):
+        raise ValueError("Priority index is out of range")
+    top_action = (
+        priority_actions[priority_index] if priority_actions else {}
+    )
     problem = str(top_action.get("problem") or "本周期未返回明确异常")
     action = str(
         top_action.get("action")
         or "暂不执行账户写操作，继续观察下一周期"
     )
 
-    focus_metric = "data_quality" if quality_status not in {"good", "unknown"} else _focus_metric(report)
+    focus_metric = (
+        "data_quality"
+        if quality_status not in {"good", "unknown"}
+        else _focus_metric_from_priority(problem)
+    )
     baseline = {
         "captured_at": report.get("captured_at") or report.get("created_at"),
         "roi": report.get("roi"),
         "gpm": report.get("gpm"),
         "spend": report.get("spend"),
         "spend_delta": report.get("spend_delta"),
+        "cpm": report.get("cpm"),
+        "assist_share": _assist_share(report),
         "gmv": report.get("gmv"),
         "average_online_viewers": report.get("average_online_viewers"),
         "online_samples": report.get("online_samples"),
@@ -334,6 +384,7 @@ def build_live_watch_task(
             "priority_success_criteria": top_action.get("success_criteria"),
             "priority_stop_condition": top_action.get("stop_condition"),
             "focus_metric": focus_metric,
+            "priority_index": priority_index,
             "priority_action": top_action,
             "baseline": baseline,
             "session_started_at": report.get("live_started_at"),
@@ -349,6 +400,8 @@ def build_live_watch_task(
 def _report_value(report: dict, focus_metric: str) -> float | None:
     if focus_metric == "data_quality":
         return 1.0 if (report.get("data_quality") or {}).get("status") == "good" else 0.0
+    if focus_metric == "assist_share":
+        return _assist_share(report)
     value = report.get(focus_metric)
     try:
         return float(value) if value is not None else None
@@ -424,6 +477,12 @@ def _classify(focus_metric: str, baseline: Any, value: float) -> str:
     if base == 0:
         return "neutral"
     pct = (value - base) / abs(base) * 100
+    if focus_metric in {"assist_share", "cpm"}:
+        if pct <= -5:
+            return "success"
+        if pct >= 5:
+            return "failure"
+        return "neutral"
     if pct >= 5:
         return "success"
     if pct <= -5:
