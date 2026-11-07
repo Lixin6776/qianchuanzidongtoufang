@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import threading
 import uuid
@@ -11,6 +12,7 @@ DEFAULT_KNOWLEDGE_ROOT = (
     Path(__file__).resolve().parents[3] / ".local" / "knowledge_base"
 )
 TEXT_SUFFIXES = {".txt", ".md", ".markdown", ".csv", ".json", ".yaml", ".yml"}
+DOCUMENT_SUFFIXES = {".pdf", ".docx"}
 MAX_FILE_BYTES = 10 * 1024 * 1024
 METRIC_FIELDS = {
     "roi": ("ROI", "", 2),
@@ -135,8 +137,14 @@ class KnowledgeBaseStore:
 
         preview = ""
         parse_status = "stored_only"
-        if suffix in TEXT_SUFFIXES:
-            preview = self._decode_text(content)[:2000]
+        text_stored_name = None
+        extracted_text = self._extract_text(suffix, content)
+        if extracted_text.strip():
+            text_stored_name = f"{item_id}.extracted.txt"
+            (self.files_dir / text_stored_name).write_text(
+                extracted_text, encoding="utf-8"
+            )
+            preview = extracted_text.strip()[:2000]
             parse_status = "parsed"
         item = {
             "id": item_id,
@@ -147,6 +155,7 @@ class KnowledgeBaseStore:
             "parse_status": parse_status,
             "preview": preview,
             "stored_name": stored_name,
+            "text_stored_name": text_stored_name,
         }
         with self._lock:
             items = self._read_index()
@@ -163,8 +172,10 @@ class KnowledgeBaseStore:
             )
             if target is None:
                 return False
-            stored_name = str(target.get("stored_name") or "")
-            if stored_name:
+            for key in ("stored_name", "text_stored_name"):
+                stored_name = str(target.get(key) or "")
+                if not stored_name:
+                    continue
                 try:
                     (self.files_dir / stored_name).unlink()
                 except FileNotFoundError:
@@ -180,9 +191,15 @@ class KnowledgeBaseStore:
         for item in self.list_files():
             if item.get("parse_status") != "parsed":
                 continue
-            path = self.files_dir / str(item.get("stored_name") or "")
+            text_name = str(
+                item.get("text_stored_name") or item.get("stored_name") or ""
+            )
+            path = self.files_dir / text_name
             try:
-                text = self._decode_text(path.read_bytes()).strip()
+                if item.get("text_stored_name"):
+                    text = path.read_text(encoding="utf-8").strip()
+                else:
+                    text = self._decode_text(path.read_bytes()).strip()
             except OSError:
                 continue
             if not text:
@@ -212,6 +229,29 @@ class KnowledgeBaseStore:
         }
 
     @staticmethod
+    def _extract_text(suffix: str, content: bytes) -> str:
+        if suffix in TEXT_SUFFIXES:
+            return KnowledgeBaseStore._decode_text(content)
+        try:
+            if suffix == ".pdf":
+                from pypdf import PdfReader
+
+                reader = PdfReader(io.BytesIO(content))
+                return "\n".join((page.extract_text() or "") for page in reader.pages)
+            if suffix == ".docx":
+                from docx import Document
+
+                document = Document(io.BytesIO(content))
+                lines = [paragraph.text for paragraph in document.paragraphs]
+                for table in document.tables:
+                    for row in table.rows:
+                        lines.append(" | ".join(cell.text for cell in row.cells))
+                return "\n".join(line for line in lines if line.strip())
+        except Exception:  # noqa: BLE001
+            return ""
+        return ""
+
+    @staticmethod
     def _decode_text(content: bytes) -> str:
         for encoding in ("utf-8-sig", "utf-8", "gb18030"):
             try:
@@ -237,4 +277,8 @@ class KnowledgeBaseStore:
 
     @staticmethod
     def _public(item: dict) -> dict:
-        return {key: value for key, value in item.items() if key != "stored_name"}
+        return {
+            key: value
+            for key, value in item.items()
+            if key not in {"stored_name", "text_stored_name"}
+        }

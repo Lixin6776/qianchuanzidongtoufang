@@ -17,7 +17,9 @@ dependencies = [
   "playwright>=1.50,<2",
   "httpx>=0.28,<1",
   "sse-starlette>=2.2,<3",
-  "structlog>=24.4,<26"
+  "structlog>=24.4,<26",
+  "pypdf>=5,<7",
+  "python-docx>=1.1,<2"
 ]
 
 [project.optional-dependencies]

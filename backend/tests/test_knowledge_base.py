@@ -153,3 +153,22 @@ def test_knowledge_delete_api(client, tmp_path, monkeypatch):
     assert response.status_code == 204
     assert store.list_files() == []
     assert client.delete(f"/api/knowledge-base/files/{item['id']}").status_code == 404
+
+def test_docx_knowledge_file_is_text_extracted(tmp_path):
+    from docx import Document
+
+    document = Document()
+    document.add_paragraph("Word 规则：高消耗低效素材先核对持续多天低跑量")
+    content_path = tmp_path / "rules.docx"
+    document.save(content_path)
+
+    store = KnowledgeBaseStore(tmp_path / "knowledge")
+    item = store.save_file(
+        "投手规则.docx",
+        content_path.read_bytes(),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+    assert item["parse_status"] == "parsed"
+    assert "高消耗低效素材" in item["preview"]
+    assert "高消耗低效素材" in store.knowledge_excerpt()
