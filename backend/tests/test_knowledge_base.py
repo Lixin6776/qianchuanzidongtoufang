@@ -172,3 +172,38 @@ def test_docx_knowledge_file_is_text_extracted(tmp_path):
     assert item["parse_status"] == "parsed"
     assert "高消耗低效素材" in item["preview"]
     assert "高消耗低效素材" in store.knowledge_excerpt()
+
+def test_disabled_files_are_not_used_and_fall_back_to_history(tmp_path):
+    store = KnowledgeBaseStore(tmp_path / "knowledge")
+    first = store.save_file("old.md", "旧规则".encode(), "text/markdown")
+    second = store.save_file("active.md", "有效规则".encode(), "text/markdown")
+    reports = [{"source": "cdp", "verify_passed": True, "roi": 2.4, "data_quality": {"status": "good"}}]
+
+    disabled = store.set_file_enabled(first["id"], False)
+    assert disabled["enabled"] is False
+    overview = store.overview(reports)
+    assert overview["mode"] == "uploaded"
+    assert overview["active_count"] == 1
+    assert "有效规则" in store.knowledge_excerpt()
+    assert "旧规则" not in store.knowledge_excerpt()
+
+    store.set_file_enabled(second["id"], False)
+    fallback = store.overview(reports)
+    assert fallback["mode"] == "historical_average"
+    assert fallback["active_count"] == 0
+    assert fallback["historical_reference"]["sample_count"] == 1
+
+
+def test_knowledge_toggle_api(client, tmp_path, monkeypatch):
+    store = KnowledgeBaseStore(tmp_path / "knowledge")
+    item = store.save_file("rules.md", b"rule", "text/markdown")
+    monkeypatch.setattr(knowledge_api, "KnowledgeBaseStore", lambda: store)
+
+    response = client.patch(
+        f"/api/knowledge-base/files/{item['id']}",
+        json={"enabled": False},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["enabled"] is False
+    assert store.list_files()[0]["enabled"] is False

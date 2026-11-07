@@ -15,6 +15,10 @@ class KnowledgeFileUpload(BaseModel):
     content_type: str = ""
 
 
+class KnowledgeFileUpdate(BaseModel):
+    enabled: bool
+
+
 def _reports(request: Request) -> list[dict]:
     service = getattr(request.app.state, "live_watch_service", None)
     store = getattr(service, "store", None)
@@ -40,6 +44,14 @@ def upload_knowledge_file(payload: KnowledgeFileUpload) -> dict:
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+@router.patch("/files/{file_id}")
+def update_knowledge_file(file_id: str, payload: KnowledgeFileUpdate) -> dict:
+    try:
+        return KnowledgeBaseStore().set_file_enabled(file_id, payload.enabled)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Knowledge file not found") from exc
+
 
 @router.delete("/files/{file_id}", status_code=204)
 def delete_knowledge_file(file_id: str) -> Response:

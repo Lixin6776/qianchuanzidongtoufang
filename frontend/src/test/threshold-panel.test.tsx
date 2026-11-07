@@ -6,6 +6,7 @@ const createStrategyProfile = vi.fn();
 const getKnowledgeOverview = vi.fn();
 const uploadKnowledgeFile = vi.fn();
 const deleteKnowledgeFile = vi.fn();
+const updateKnowledgeFileEnabled = vi.fn();
 
 vi.mock("../lib/api", () => ({
   getActiveProfile: (...a: unknown[]) => getActiveProfile(...a),
@@ -13,6 +14,7 @@ vi.mock("../lib/api", () => ({
   getKnowledgeOverview: (...a: unknown[]) => getKnowledgeOverview(...a),
   uploadKnowledgeFile: (...a: unknown[]) => uploadKnowledgeFile(...a),
   deleteKnowledgeFile: (...a: unknown[]) => deleteKnowledgeFile(...a),
+  updateKnowledgeFileEnabled: (...a: unknown[]) => updateKnowledgeFileEnabled(...a),
   // 投手知识库窗口现在也会渲染《操作反馈表》
   getOpsOutcomeSnapshots: vi.fn().mockResolvedValue([]),
   getOpsOutcome: vi.fn().mockResolvedValue({
@@ -163,4 +165,70 @@ test("knowledge file can be deleted and falls back to history", async () => {
   await waitFor(() => expect(deleteKnowledgeFile).toHaveBeenCalledWith("kb-1"));
   await screen.findByText("账户历史参考");
   expect(screen.queryByText("错误规则.md")).not.toBeInTheDocument();
+});
+
+test("knowledge file can be disabled and excluded from active context", async () => {
+  getActiveProfile.mockResolvedValue({
+    version: 1,
+    name: "test",
+    business_direction: "全域直播投放",
+    primary_objective: "稳定放量",
+    secondary_objectives: [],
+    hard_constraints: {},
+    monitoring_config: { interval_minutes: 5 },
+    allowed_actions: [],
+    notification_policy: { dedupe_minutes: 10 }
+  });
+  getKnowledgeOverview
+    .mockResolvedValueOnce({
+      mode: "uploaded",
+      active_count: 1,
+      files: [
+        {
+          id: "kb-1",
+          name: "旧规则.md",
+          size: 10,
+          content_type: "text/markdown",
+          uploaded_at: "2026-11-07T10:00:00+08:00",
+          parse_status: "parsed",
+          preview: "旧规则",
+          enabled: true
+        }
+      ],
+      historical_reference: null
+    })
+    .mockResolvedValueOnce({
+      mode: "historical_average",
+      active_count: 0,
+      files: [
+        {
+          id: "kb-1",
+          name: "旧规则.md",
+          size: 10,
+          content_type: "text/markdown",
+          uploaded_at: "2026-11-07T10:00:00+08:00",
+          parse_status: "parsed",
+          preview: "旧规则",
+          enabled: false
+        }
+      ],
+      historical_reference: {
+        sample_count: 10,
+        metrics: [{ key: "roi", label: "ROI", average: 2.1, unit: "", samples: 10 }],
+        note: "仅作历史参考"
+      }
+    });
+  updateKnowledgeFileEnabled.mockResolvedValue({
+    id: "kb-1",
+    name: "旧规则.md",
+    enabled: false
+  });
+
+  render(<ThresholdPanel />);
+  await screen.findByText("旧规则.md");
+  fireEvent.click(screen.getByRole("button", { name: "停用旧规则.md" }));
+
+  await waitFor(() => expect(updateKnowledgeFileEnabled).toHaveBeenCalledWith("kb-1", false));
+  expect(screen.getByText("已停用")).toBeInTheDocument();
+  expect(await screen.findByText("账户历史参考")).toBeInTheDocument();
 });

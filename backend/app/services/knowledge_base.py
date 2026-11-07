@@ -119,7 +119,7 @@ class KnowledgeBaseStore:
         self._lock = threading.Lock()
 
     def list_files(self) -> list[dict]:
-        items = self._read_index()
+        items = [self._normalized(item) for item in self._read_index()]
         return sorted(items, key=lambda item: item.get("uploaded_at") or "", reverse=True)
 
     def save_file(self, name: str, content: bytes, content_type: str = "") -> dict:
@@ -156,12 +156,26 @@ class KnowledgeBaseStore:
             "preview": preview,
             "stored_name": stored_name,
             "text_stored_name": text_stored_name,
+            "enabled": True,
         }
         with self._lock:
             items = self._read_index()
             items.append(item)
             self._write_index(items)
         return self._public(item)
+
+    def set_file_enabled(self, item_id: str, enabled: bool) -> dict:
+        with self._lock:
+            items = self._read_index()
+            target = next(
+                (item for item in items if str(item.get("id")) == str(item_id)),
+                None,
+            )
+            if target is None:
+                raise KeyError("Knowledge file not found")
+            target["enabled"] = bool(enabled)
+            self._write_index(items)
+            return self._public(self._normalized(target))
 
     def delete_file(self, item_id: str) -> bool:
         with self._lock:
@@ -189,7 +203,7 @@ class KnowledgeBaseStore:
         chunks: list[str] = []
         used = 0
         for item in self.list_files():
-            if item.get("parse_status") != "parsed":
+            if not item.get("enabled", True) or item.get("parse_status") != "parsed":
                 continue
             text_name = str(
                 item.get("text_stored_name") or item.get("stored_name") or ""
@@ -215,8 +229,9 @@ class KnowledgeBaseStore:
 
     def overview(self, reports: list[dict]) -> dict:
         files = [self._public(item) for item in self.list_files()]
-        historical = None if files else build_historical_reference(reports)
-        if files:
+        active_count = sum(1 for item in files if item.get("enabled", True))
+        historical = None if active_count else build_historical_reference(reports)
+        if active_count:
             mode = "uploaded"
         elif historical and historical.get("metrics"):
             mode = "historical_average"
@@ -225,6 +240,7 @@ class KnowledgeBaseStore:
         return {
             "mode": mode,
             "files": files,
+            "active_count": active_count,
             "historical_reference": historical,
         }
 
@@ -274,6 +290,12 @@ class KnowledgeBaseStore:
         self.index_path.write_text(
             json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+
+    @staticmethod
+    def _normalized(item: dict) -> dict:
+        normalized = dict(item)
+        normalized["enabled"] = bool(normalized.get("enabled", True))
+        return normalized
 
     @staticmethod
     def _public(item: dict) -> dict:

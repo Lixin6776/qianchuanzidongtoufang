@@ -188,7 +188,8 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - Knowledge files are the primary source for assistant context: uploaded rules and SOPs are parsed for the operations assistant.
 - When no file is uploaded, show account historical averages with sample counts and an explicit “historical reference, not a rule” label.
 - PDF and Word files are text-extracted into a separate readable sidecar for assistant context. Images or unsupported files may be stored, but must state that text extraction is unavailable rather than pretending they were analyzed.
-- Every uploaded file has an explicit delete action with confirmation; deleting the last file immediately restores the historical-average fallback.
+- Every uploaded file has explicit enable/disable and delete actions; disabled files stay visible but are excluded from assistant context.
+- Deleting or disabling the last active file immediately restores the historical-average fallback.
 - Manual account thresholds remain available below the file section and continue to use versioned profiles.
 
 ### Decision Loop Action

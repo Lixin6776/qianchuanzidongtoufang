@@ -19,6 +19,7 @@ vi.mock("../lib/api", () => ({
   getKnowledgeOverview: vi.fn().mockResolvedValue({ mode: "empty", files: [], historical_reference: null }),
   uploadKnowledgeFile: vi.fn(),
   deleteKnowledgeFile: vi.fn().mockResolvedValue(undefined),
+  updateKnowledgeFileEnabled: vi.fn().mockResolvedValue({ enabled: false }),
   getLiveWatchLogs: vi.fn().mockResolvedValue([]),
   saveLocalConfig: vi.fn().mockResolvedValue({ saved: {}, message: "ok" }),
   createStrategyProfile: vi.fn().mockResolvedValue({

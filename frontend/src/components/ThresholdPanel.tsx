@@ -5,6 +5,7 @@ import {
   deleteKnowledgeFile,
   getActiveProfile,
   getKnowledgeOverview,
+  updateKnowledgeFileEnabled,
   uploadKnowledgeFile,
   type KnowledgeOverview
 } from "../lib/api";
@@ -62,6 +63,7 @@ export function ThresholdPanel() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [knowledgeNotice, setKnowledgeNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -160,6 +162,20 @@ export function ThresholdPanel() {
     }
   }
 
+  async function handleToggleKnowledge(id: string, enabled: boolean) {
+    setTogglingId(id);
+    setKnowledgeNotice("");
+    try {
+      await updateKnowledgeFileEnabled(id, enabled);
+      await refreshKnowledge();
+      setKnowledgeNotice(enabled ? "知识文件已启用。" : "知识文件已停用。");
+    } catch {
+      setKnowledgeNotice("更新知识文件状态失败，请检查本地服务。");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   async function handleDeleteKnowledge(id: string, name: string) {
     if (!window.confirm(`确定删除知识文件「${name}」吗？删除后运营助手将不再引用它。`)) {
       return;
@@ -228,64 +244,102 @@ export function ThresholdPanel() {
           <span className="module-spinner" aria-hidden="true" />
           正在读取知识文件…
         </div>
-      ) : knowledge?.files.length ? (
-        <div className="knowledge-file-list">
-          {knowledge.files.map((file) => (
-            <article key={file.id}>
-              <div className="knowledge-file-row">
+      ) : (
+        <>
+          {knowledge?.files.length ? (
+            <div className="knowledge-file-list">
+              {knowledge.files.map((file) => (
+                <article key={file.id}>
+                  <div className="knowledge-file-row">
+                    <div>
+                      <strong>{file.name}</strong>
+                      <span>
+                        {(file.size / 1024).toFixed(1)} KB ·{" "}
+                        {file.parse_status === "parsed"
+                          ? "文本已解析"
+                          : "已存储，暂不提取文本"}
+                      </span>
+                    </div>
+                    <div className="knowledge-file-actions">
+                      <span
+                        className={
+                          file.enabled === false
+                            ? "knowledge-file-status is-disabled"
+                            : "knowledge-file-status"
+                        }
+                      >
+                        {file.enabled === false ? "已停用" : "启用中"}
+                      </span>
+                      <button
+                        className="knowledge-file-toggle"
+                        type="button"
+                        aria-label={`${file.enabled === false ? "启用" : "停用"}${file.name}`}
+                        disabled={togglingId === file.id}
+                        onClick={() =>
+                          void handleToggleKnowledge(file.id, file.enabled === false)
+                        }
+                      >
+                        {togglingId === file.id
+                          ? "更新中"
+                          : file.enabled === false
+                            ? "启用"
+                            : "停用"}
+                      </button>
+                      <button
+                        className="knowledge-file-delete"
+                        type="button"
+                        aria-label={`删除${file.name}`}
+                        disabled={deletingId === file.id}
+                        onClick={() => void handleDeleteKnowledge(file.id, file.name)}
+                      >
+                        {deletingId === file.id ? "删除中" : "删除"}
+                      </button>
+                    </div>
+                  </div>
+                  {file.preview ? <p>{file.preview}</p> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+
+          {knowledge?.mode === "historical_average" &&
+          knowledge.historical_reference ? (
+            <section
+              className="knowledge-history-reference"
+              aria-label="账户历史参考"
+            >
+              <header>
                 <div>
-                  <strong>{file.name}</strong>
+                  <strong>账户历史参考</strong>
                   <span>
-                    {(file.size / 1024).toFixed(1)} KB ·{" "}
-                    {file.parse_status === "parsed" ? "文本已解析" : "已存储，暂不提取文本"}
+                    {knowledge.historical_reference.sample_count} 次有效采样平均值
+                    {knowledge.historical_reference.window_start
+                      ? ` · ${new Date(knowledge.historical_reference.window_start).toLocaleDateString("zh-CN")} 至 ${new Date(knowledge.historical_reference.window_end || knowledge.historical_reference.window_start).toLocaleDateString("zh-CN")}`
+                      : ""}
                   </span>
                 </div>
-                <button
-                  className="knowledge-file-delete"
-                  type="button"
-                  aria-label={`删除${file.name}`}
-                  disabled={deletingId === file.id}
-                  onClick={() => void handleDeleteKnowledge(file.id, file.name)}
-                >
-                  {deletingId === file.id ? "删除中" : "删除"}
-                </button>
+                <em>历史参考，不是规则</em>
+              </header>
+              <div className="knowledge-history-metrics">
+                {knowledge.historical_reference.metrics.map((metric) => (
+                  <article key={metric.key}>
+                    <strong>
+                      {metric.label} {metric.average}
+                      {metric.unit ? ` ${metric.unit}` : ""}
+                    </strong>
+                    <small>n={metric.samples}</small>
+                  </article>
+                ))}
               </div>
-              {file.preview ? <p>{file.preview}</p> : null}
-            </article>
-          ))}
-        </div>
-      ) : knowledge?.mode === "historical_average" && knowledge.historical_reference ? (
-        <section className="knowledge-history-reference" aria-label="账户历史参考">
-          <header>
-            <div>
-              <strong>账户历史参考</strong>
-              <span>
-                {knowledge.historical_reference.sample_count} 次有效采样平均值
-                {knowledge.historical_reference.window_start
-                  ? ` · ${new Date(knowledge.historical_reference.window_start).toLocaleDateString("zh-CN")} 至 ${new Date(knowledge.historical_reference.window_end || knowledge.historical_reference.window_start).toLocaleDateString("zh-CN")}`
-                  : ""}
-              </span>
+              <p>{knowledge.historical_reference.note}</p>
+            </section>
+          ) : !knowledge?.files.length ? (
+            <div className="module-empty-state">
+              <strong>暂无知识文件和历史参考</strong>
+              <span>先上传文件，或积累足够的有效盯盘采样。</span>
             </div>
-            <em>历史参考，不是规则</em>
-          </header>
-          <div className="knowledge-history-metrics">
-            {knowledge.historical_reference.metrics.map((metric) => (
-              <article key={metric.key}>
-                <strong>
-                  {metric.label} {metric.average}
-                  {metric.unit ? ` ${metric.unit}` : ""}
-                </strong>
-                <small>n={metric.samples}</small>
-              </article>
-            ))}
-          </div>
-          <p>{knowledge.historical_reference.note}</p>
-        </section>
-      ) : (
-        <div className="module-empty-state">
-          <strong>暂无知识文件和历史参考</strong>
-          <span>先上传文件，或积累足够的有效盯盘采样。</span>
-        </div>
+          ) : null}
+        </>
       )}
 
       <h3 className="knowledge-threshold-title">账户判断标准</h3>

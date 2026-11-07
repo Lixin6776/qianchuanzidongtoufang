@@ -723,11 +723,13 @@ export type KnowledgeFile = {
   uploaded_at: string;
   parse_status: "parsed" | "stored_only" | string;
   preview: string;
+  enabled?: boolean;
 };
 
 export type KnowledgeOverview = {
   mode: "uploaded" | "historical_average" | "empty" | string;
   files: KnowledgeFile[];
+  active_count?: number;
   historical_reference: {
     sample_count: number;
     window_start?: string | null;
@@ -752,6 +754,20 @@ export async function uploadKnowledgeFile(payload: {
     body: JSON.stringify(payload)
   });
   if (!response.ok) throw new Error("Knowledge file upload failed");
+  clearGetCache("/api/knowledge-base");
+  return response.json();
+}
+
+export async function updateKnowledgeFileEnabled(
+  id: string,
+  enabled: boolean
+): Promise<KnowledgeFile> {
+  const response = await fetch(`${API_BASE}/api/knowledge-base/files/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled })
+  });
+  if (!response.ok) throw new Error("Knowledge file update failed");
   clearGetCache("/api/knowledge-base");
   return response.json();
 }
