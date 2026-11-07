@@ -543,7 +543,7 @@ export function LiveStatusCard({
                 </div>
                 <em>{item.verify_minutes} 分钟验证</em>
                 <button
-                  className={index === 0 ? "button-primary" : "button-outline"}
+                  className="button-primary live-priority-task-button"
                   type="button"
                   disabled={
                     !canCreateTask ||

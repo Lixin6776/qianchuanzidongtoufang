@@ -53,6 +53,15 @@ const VERDICT_LABEL: Record<string, string> = {
   insufficient_data: "数据不足"
 };
 
+type TaskFilter = "all" | "pending" | "verifying" | "done";
+
+const FILTER_LABEL: Record<TaskFilter, string> = {
+  all: "全部",
+  pending: "待处理",
+  verifying: "验证中",
+  done: "已完成"
+};
+
 function formatWindow(window: VerificationWindow | null | undefined, label: string) {
   if (!window) return null;
   const delta = window.delta;
@@ -64,14 +73,18 @@ function formatWindow(window: VerificationWindow | null | undefined, label: stri
 }
 
 export function OpsTaskPanel({
-  loadTasks = getOpsTasks
+  loadTasks = getOpsTasks,
+  refreshMs = 30_000
 }: {
   loadTasks?: () => Promise<OpsTask[]>;
+  refreshMs?: number;
 }) {
   const [tasks, setTasks] = useState<OpsTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState<TaskFilter>("all");
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
   const [form, setForm] = useState({
     title: "",
     owner: "",
@@ -84,22 +97,33 @@ export function OpsTaskPanel({
   });
 
   async function refresh() {
-    setTasks(await loadTasks());
+    const next = await loadTasks();
+    setTasks(next);
+    setLastRefreshedAt(new Date().toLocaleTimeString("zh-CN"));
   }
 
   useEffect(() => {
     let active = true;
-    refresh()
-      .catch(() => {
+    const load = async () => {
+      try {
+        const next = await loadTasks();
+        if (!active) return;
+        setTasks(next);
+        setLastRefreshedAt(new Date().toLocaleTimeString("zh-CN"));
+        setError("");
+      } catch {
         if (active) setError("运营任务读取失败，请检查本地服务。");
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    };
+    void load();
+    const timer = refreshMs > 0 ? window.setInterval(load, refreshMs) : null;
     return () => {
       active = false;
+      if (timer !== null) window.clearInterval(timer);
     };
-  }, []);
+  }, [loadTasks, refreshMs]);
 
   async function run(id: string, action: () => Promise<unknown>) {
     setBusy(id);
@@ -175,6 +199,19 @@ export function OpsTaskPanel({
     );
   }
 
+  const counts: Record<TaskFilter, number> = {
+    all: tasks.length,
+    pending: tasks.filter((task) => task.status === "open").length,
+    verifying: tasks.filter((task) => task.status === "in_progress").length,
+    done: tasks.filter((task) => task.status === "done" || task.status === "dismissed").length
+  };
+  const filteredTasks = tasks.filter((task) => {
+    if (filter === "pending") return task.status === "open";
+    if (filter === "verifying") return task.status === "in_progress";
+    if (filter === "done") return task.status === "done" || task.status === "dismissed";
+    return true;
+  });
+
   return (
     <div className="module-stack">
       <p className="monitor-signal">
@@ -183,10 +220,25 @@ export function OpsTaskPanel({
       {error ? <div className="module-error">{error}</div> : null}
 
       <section className="module-stack">
-        <h3>任务清单</h3>
-        {tasks.length ? (
+        <div className="task-board-head">
+          <h3>任务清单</h3>
+          <span>最后刷新 {lastRefreshedAt || "--"}</span>
+        </div>
+        <div className="task-filter-bar" role="group" aria-label="任务筛选">
+          {(Object.keys(FILTER_LABEL) as TaskFilter[]).map((key) => (
+            <button
+              className={filter === key ? "task-filter active" : "task-filter"}
+              key={key}
+              type="button"
+              onClick={() => setFilter(key)}
+            >
+              {FILTER_LABEL[key]} {counts[key]}
+            </button>
+          ))}
+        </div>
+        {filteredTasks.length ? (
           <div className="strategy-list">
-            {tasks.map((task) => {
+            {filteredTasks.map((task) => {
               const verification = task.verification;
               const focusLabel = verification?.focus_label || verification?.focus_metric?.toUpperCase() || "指标";
               const tenMinute = formatWindow(verification?.window_10m, focusLabel);
@@ -304,8 +356,8 @@ export function OpsTaskPanel({
           </div>
         ) : (
           <div className="module-empty-state">
-            <strong>暂无运营任务</strong>
-            <span>把需要跟进的问题落成有负责人、验证窗口和止损条件的任务。</span>
+            <strong>当前筛选下暂无任务</strong>
+            <span>切换筛选，或把需要跟进的问题落成有负责人、验证窗口和止损条件的任务。</span>
           </div>
         )}
       </section>

@@ -199,7 +199,7 @@ Depth is created primarily with tonal separation: deep navy control surfaces, wh
 - Task creation never executes an account write; it creates an operations task for human confirmation.
 
 ### Task Verification
-- The operations task window appears before the manual task form.
+- The operations task window appears before the manual task form, refreshes verification every 30 seconds, and exposes all/pending/verifying/completed filters with counts.
 - Verification shows the baseline, 10-minute and 30-minute observations, data-quality gate, and a suggested verdict.
 - A successful verdict can be confirmed to complete the task; a failed verdict creates a rollback task instead of claiming an automatic rollback.
 - Missing or untrusted validation data must be labeled as insufficient, never inferred as success.

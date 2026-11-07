@@ -2124,6 +2124,40 @@ body {
 }
 .live-status-quality-muted { color: #a6b6ce !important; }
 
+/* Task board: filters, refresh status, and verification-first ordering */
+.task-board-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.task-board-head span {
+  color: #7b8798;
+  font-size: 11px;
+}
+.task-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+.task-filter {
+  padding: 5px 10px;
+  border: 1px solid #dfe6f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #5e6c80;
+  font-size: 11px;
+  cursor: pointer;
+}
+.task-filter:hover { border-color: #a9c5ef; color: #245da8; }
+.task-filter.active {
+  border-color: #8eb5ef;
+  background: #edf5ff;
+  color: #1f5fae;
+  font-weight: 600;
+}
+
 /* Task board: verification tasks first, manual task form collapsed */
 .ops-task-create {
   margin-top: 12px;
