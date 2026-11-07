@@ -2170,6 +2170,21 @@ body {
   color: #1f5fae;
   font-weight: 600;
 }
+.task-header-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.task-urgency {
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.task-urgency-overdue { background: #feebec; color: #c52a30; }
+.task-urgency-soon { background: #fff5e5; color: #a9660d; }
 
 /* Task board: verification tasks first, manual task form collapsed */
 .ops-task-create {

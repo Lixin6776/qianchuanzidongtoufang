@@ -90,3 +90,19 @@ test("task board refreshes verification data automatically", async () => {
   expect(loadTasks).toHaveBeenCalledTimes(2);
   vi.useRealTimers();
 });
+
+test("overdue tasks are marked and available in the attention filter", async () => {
+  const overdue = new Date(Date.now() - 15 * 60_000).toISOString();
+  const loadTasks = vi.fn().mockResolvedValue([
+    task("overdue", { title: "超时任务", due_at: overdue, priority: "high" }),
+    task("normal", { title: "普通任务", due_at: new Date(Date.now() + 2 * 60 * 60_000).toISOString() })
+  ]);
+
+  render(<OpsTaskPanel loadTasks={loadTasks} refreshMs={0} />);
+  await screen.findByText("超时任务");
+
+  expect(screen.getByText("已超时")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /需关注/ }));
+  expect(screen.getByText("超时任务")).toBeInTheDocument();
+  expect(screen.queryByText("普通任务")).not.toBeInTheDocument();
+});

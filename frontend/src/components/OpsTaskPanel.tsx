@@ -53,14 +53,37 @@ const VERDICT_LABEL: Record<string, string> = {
   insufficient_data: "数据不足"
 };
 
-type TaskFilter = "all" | "pending" | "verifying" | "done";
+type TaskFilter = "attention" | "all" | "pending" | "verifying" | "done";
 
 const FILTER_LABEL: Record<TaskFilter, string> = {
+  attention: "需关注",
   all: "全部",
   pending: "待处理",
   verifying: "验证中",
   done: "已完成"
 };
+
+type TaskUrgency = "overdue" | "due_soon" | "normal";
+
+function taskUrgency(task: OpsTask, now = Date.now()): TaskUrgency {
+  if (task.status === "done" || task.status === "dismissed" || !task.due_at) {
+    return "normal";
+  }
+  const due = new Date(task.due_at).getTime();
+  if (Number.isNaN(due)) return "normal";
+  if (due <= now) return "overdue";
+  if (due <= now + 60 * 60_000) return "due_soon";
+  return "normal";
+}
+
+function needsAttention(task: OpsTask, now = Date.now()): boolean {
+  if (task.status === "done" || task.status === "dismissed") return false;
+  if (taskUrgency(task, now) !== "normal") return true;
+  return (
+    task.verification?.suggested_verdict === "success" ||
+    task.verification?.suggested_verdict === "failure"
+  );
+}
 
 function formatWindow(window: VerificationWindow | null | undefined, label: string) {
   if (!window) return null;
@@ -199,18 +222,34 @@ export function OpsTaskPanel({
     );
   }
 
+  const now = Date.now();
   const counts: Record<TaskFilter, number> = {
+    attention: tasks.filter((task) => needsAttention(task, now)).length,
     all: tasks.length,
     pending: tasks.filter((task) => task.status === "open").length,
     verifying: tasks.filter((task) => task.status === "in_progress").length,
     done: tasks.filter((task) => task.status === "done" || task.status === "dismissed").length
   };
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === "pending") return task.status === "open";
-    if (filter === "verifying") return task.status === "in_progress";
-    if (filter === "done") return task.status === "done" || task.status === "dismissed";
-    return true;
-  });
+  const filteredTasks = tasks
+    .filter((task) => {
+      if (filter === "attention") return needsAttention(task, now);
+      if (filter === "pending") return task.status === "open";
+      if (filter === "verifying") return task.status === "in_progress";
+      if (filter === "done") return task.status === "done" || task.status === "dismissed";
+      return true;
+    })
+    .sort((left, right) => {
+      const score = (task: OpsTask) => {
+        const urgency = taskUrgency(task, now);
+        if (urgency === "overdue") return 0;
+        if (task.verification?.suggested_verdict === "failure") return 1;
+        if (task.verification?.suggested_verdict === "success") return 2;
+        if (urgency === "due_soon") return 3;
+        if (task.priority === "high") return 4;
+        return 5;
+      };
+      return score(left) - score(right);
+    });
 
   return (
     <div className="module-stack">
@@ -257,9 +296,16 @@ export function OpsTaskPanel({
                             : "中优先级"}
                       </span>
                     </div>
-                    <span className={`verdict-badge verdict-${task.status}`}>
-                      {STATUS_LABEL[task.status] ?? task.status}
-                    </span>
+                    <div className="task-header-badges">
+                      {taskUrgency(task, now) === "overdue" ? (
+                        <span className="task-urgency task-urgency-overdue">已超时</span>
+                      ) : taskUrgency(task, now) === "due_soon" ? (
+                        <span className="task-urgency task-urgency-soon">即将到期</span>
+                      ) : null}
+                      <span className={`verdict-badge verdict-${task.status}`}>
+                        {STATUS_LABEL[task.status] ?? task.status}
+                      </span>
+                    </div>
                   </header>
                   {task.description ? <p>{task.description}</p> : null}
                   <div className="execution-meta">
