@@ -1,7 +1,7 @@
 import base64
 import binascii
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from app.services.knowledge_base import KnowledgeBaseStore
@@ -40,3 +40,9 @@ def upload_knowledge_file(payload: KnowledgeFileUpload) -> dict:
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+@router.delete("/files/{file_id}", status_code=204)
+def delete_knowledge_file(file_id: str) -> Response:
+    if not KnowledgeBaseStore().delete_file(file_id):
+        raise HTTPException(status_code=404, detail="Knowledge file not found")
+    return Response(status_code=204)

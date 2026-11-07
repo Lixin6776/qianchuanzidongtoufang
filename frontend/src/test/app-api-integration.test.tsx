@@ -18,6 +18,7 @@ vi.mock("../lib/api", () => ({
   createOpsTaskFromLiveWatch: vi.fn().mockResolvedValue({ id: "task-1", status: "open" }),
   getKnowledgeOverview: vi.fn().mockResolvedValue({ mode: "empty", files: [], historical_reference: null }),
   uploadKnowledgeFile: vi.fn(),
+  deleteKnowledgeFile: vi.fn().mockResolvedValue(undefined),
   getLiveWatchLogs: vi.fn().mockResolvedValue([]),
   saveLocalConfig: vi.fn().mockResolvedValue({ saved: {}, message: "ok" }),
   createStrategyProfile: vi.fn().mockResolvedValue({

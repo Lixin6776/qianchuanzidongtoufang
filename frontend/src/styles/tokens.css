@@ -948,12 +948,25 @@ body { font-size: 14px; line-height: 1.5; }
   border-radius: 8px;
   background: #fbfcff;
 }
-.knowledge-file-list article > div {
+.knowledge-file-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
+.knowledge-file-row > div { display: grid; gap: 2px; }
+.knowledge-file-delete {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid #efc8cc;
+  border-radius: 5px;
+  background: #fff7f7;
+  color: #b7343d;
+  font-size: 11px;
+  cursor: pointer;
+}
+.knowledge-file-delete:hover { background: #feebec; }
+.knowledge-file-delete:disabled { opacity: 0.55; cursor: wait; }
 .knowledge-file-list strong { color: #23344d; font-size: 13px; }
 .knowledge-file-list span { color: #7a879b; font-size: 11px; }
 .knowledge-file-list p {

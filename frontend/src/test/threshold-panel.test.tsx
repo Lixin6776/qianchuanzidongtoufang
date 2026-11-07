@@ -5,12 +5,14 @@ const getActiveProfile = vi.fn();
 const createStrategyProfile = vi.fn();
 const getKnowledgeOverview = vi.fn();
 const uploadKnowledgeFile = vi.fn();
+const deleteKnowledgeFile = vi.fn();
 
 vi.mock("../lib/api", () => ({
   getActiveProfile: (...a: unknown[]) => getActiveProfile(...a),
   createStrategyProfile: (...a: unknown[]) => createStrategyProfile(...a),
   getKnowledgeOverview: (...a: unknown[]) => getKnowledgeOverview(...a),
   uploadKnowledgeFile: (...a: unknown[]) => uploadKnowledgeFile(...a),
+  deleteKnowledgeFile: (...a: unknown[]) => deleteKnowledgeFile(...a),
   // 投手知识库窗口现在也会渲染《操作反馈表》
   getOpsOutcomeSnapshots: vi.fn().mockResolvedValue([]),
   getOpsOutcome: vi.fn().mockResolvedValue({
@@ -112,4 +114,53 @@ test("knowledge file upload sends file content to the local knowledge base", asy
   const payload = uploadKnowledgeFile.mock.calls[0][0] as Record<string, string>;
   expect(payload.name).toBe("投手规则.md");
   expect(payload.content_base64).toBeTruthy();
+});
+
+test("knowledge file can be deleted and falls back to history", async () => {
+  getActiveProfile.mockResolvedValue({
+    version: 1,
+    name: "test",
+    business_direction: "全域直播投放",
+    primary_objective: "稳定放量",
+    secondary_objectives: [],
+    hard_constraints: {},
+    monitoring_config: { interval_minutes: 5 },
+    allowed_actions: [],
+    notification_policy: { dedupe_minutes: 10 }
+  });
+  getKnowledgeOverview
+    .mockResolvedValueOnce({
+      mode: "uploaded",
+      files: [
+        {
+          id: "kb-1",
+          name: "错误规则.md",
+          size: 10,
+          content_type: "text/markdown",
+          uploaded_at: "2026-11-07T10:00:00+08:00",
+          parse_status: "parsed",
+          preview: "错误规则"
+        }
+      ],
+      historical_reference: null
+    })
+    .mockResolvedValueOnce({
+      mode: "historical_average",
+      files: [],
+      historical_reference: {
+        sample_count: 10,
+        metrics: [{ key: "roi", label: "ROI", average: 2.1, unit: "", samples: 10 }],
+        note: "仅作历史参考"
+      }
+    });
+  deleteKnowledgeFile.mockResolvedValue(undefined);
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(<ThresholdPanel />);
+  await screen.findByText("错误规则.md");
+  fireEvent.click(screen.getByRole("button", { name: "删除错误规则.md" }));
+
+  await waitFor(() => expect(deleteKnowledgeFile).toHaveBeenCalledWith("kb-1"));
+  await screen.findByText("账户历史参考");
+  expect(screen.queryByText("错误规则.md")).not.toBeInTheDocument();
 });

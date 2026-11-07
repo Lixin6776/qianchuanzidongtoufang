@@ -756,6 +756,14 @@ export async function uploadKnowledgeFile(payload: {
   return response.json();
 }
 
+export async function deleteKnowledgeFile(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/knowledge-base/files/${id}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) throw new Error("Knowledge file delete failed");
+  clearGetCache("/api/knowledge-base");
+}
+
 // --- 本机配置（直播间 / 账户）------------------------------------------------
 
 export type LocalConfig = {

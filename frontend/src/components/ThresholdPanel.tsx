@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   createStrategyProfile,
+  deleteKnowledgeFile,
   getActiveProfile,
   getKnowledgeOverview,
   uploadKnowledgeFile,
@@ -60,6 +61,7 @@ export function ThresholdPanel() {
   const [knowledgeLoading, setKnowledgeLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [knowledgeNotice, setKnowledgeNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -158,6 +160,23 @@ export function ThresholdPanel() {
     }
   }
 
+  async function handleDeleteKnowledge(id: string, name: string) {
+    if (!window.confirm(`确定删除知识文件「${name}」吗？删除后运营助手将不再引用它。`)) {
+      return;
+    }
+    setDeletingId(id);
+    setKnowledgeNotice("");
+    try {
+      await deleteKnowledgeFile(id);
+      await refreshKnowledge();
+      setKnowledgeNotice("知识文件已删除。");
+    } catch {
+      setKnowledgeNotice("删除失败，请检查本地服务。");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function resetAll() {
     const next: Record<string, string> = {};
     for (const field of FIELDS) next[field.key] = "";
@@ -213,12 +232,23 @@ export function ThresholdPanel() {
         <div className="knowledge-file-list">
           {knowledge.files.map((file) => (
             <article key={file.id}>
-              <div>
-                <strong>{file.name}</strong>
-                <span>
-                  {(file.size / 1024).toFixed(1)} KB ·{" "}
-                  {file.parse_status === "parsed" ? "文本已解析" : "已存储，暂不提取文本"}
-                </span>
+              <div className="knowledge-file-row">
+                <div>
+                  <strong>{file.name}</strong>
+                  <span>
+                    {(file.size / 1024).toFixed(1)} KB ·{" "}
+                    {file.parse_status === "parsed" ? "文本已解析" : "已存储，暂不提取文本"}
+                  </span>
+                </div>
+                <button
+                  className="knowledge-file-delete"
+                  type="button"
+                  aria-label={`删除${file.name}`}
+                  disabled={deletingId === file.id}
+                  onClick={() => void handleDeleteKnowledge(file.id, file.name)}
+                >
+                  {deletingId === file.id ? "删除中" : "删除"}
+                </button>
               </div>
               {file.preview ? <p>{file.preview}</p> : null}
             </article>

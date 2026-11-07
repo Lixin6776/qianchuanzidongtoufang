@@ -118,3 +118,38 @@ def test_ops_assistant_prefers_uploaded_knowledge(tmp_path, monkeypatch):
     from app.services.ops_chat import _knowledge_excerpt
 
     assert "ROI 未达标时先收缩素材" in _knowledge_excerpt()
+
+def test_delete_file_removes_content_and_falls_back_to_history(tmp_path):
+    store = KnowledgeBaseStore(tmp_path / "knowledge")
+    first = store.save_file("old.md", "旧规则".encode(), "text/markdown")
+    second = store.save_file("new.md", "新规则".encode(), "text/markdown")
+    reports = [
+        {
+            "source": "cdp",
+            "verify_passed": True,
+            "roi": 2.5,
+            "data_quality": {"status": "good"},
+        }
+    ]
+
+    assert store.delete_file(first["id"]) is True
+    assert [item["id"] for item in store.list_files()] == [second["id"]]
+    assert "旧规则" not in store.knowledge_excerpt()
+
+    assert store.delete_file(second["id"]) is True
+    overview = store.overview(reports)
+    assert overview["mode"] == "historical_average"
+    assert overview["historical_reference"]["sample_count"] == 1
+    assert store.delete_file("missing") is False
+
+
+def test_knowledge_delete_api(client, tmp_path, monkeypatch):
+    store = KnowledgeBaseStore(tmp_path / "knowledge")
+    item = store.save_file("rules.md", b"rule", "text/markdown")
+    monkeypatch.setattr(knowledge_api, "KnowledgeBaseStore", lambda: store)
+
+    response = client.delete(f"/api/knowledge-base/files/{item['id']}")
+
+    assert response.status_code == 204
+    assert store.list_files() == []
+    assert client.delete(f"/api/knowledge-base/files/{item['id']}").status_code == 404

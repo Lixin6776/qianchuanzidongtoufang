@@ -154,6 +154,26 @@ class KnowledgeBaseStore:
             self._write_index(items)
         return self._public(item)
 
+    def delete_file(self, item_id: str) -> bool:
+        with self._lock:
+            items = self._read_index()
+            target = next(
+                (item for item in items if str(item.get("id")) == str(item_id)),
+                None,
+            )
+            if target is None:
+                return False
+            stored_name = str(target.get("stored_name") or "")
+            if stored_name:
+                try:
+                    (self.files_dir / stored_name).unlink()
+                except FileNotFoundError:
+                    pass
+            self._write_index(
+                [item for item in items if str(item.get("id")) != str(item_id)]
+            )
+            return True
+
     def knowledge_excerpt(self, limit: int = 6000) -> str:
         chunks: list[str] = []
         used = 0
