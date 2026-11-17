@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 
 import {
   connectCdp,
+  getApiConnectionStatus,
   getCdpConnection,
   getLiveWatchLogs,
   getLlmConnectionStatus,
-  getLocalConfig
+  getLocalConfig,
+  getSystemDoctor
 } from "../lib/api";
 
 type Step = {
@@ -14,15 +16,12 @@ type Step = {
   done: boolean;
   hint: string;
   optional?: boolean;
-  action?: { label: string; kind: "connect" | "open" | "tick"; target?: string };
+  action?: { label: string; kind: "connect" | "open" | "tick" | "doctor"; target?: string };
 };
 
 /**
- * 新手上路：把"能出第一份报表"要做的几件事串成一个清单。
- * 每项自动检测状态；全部完成就自动隐藏（也可手动关掉）。
- *
- * 说明：给朋友/同行用的时候，他们最容易漏的就是「配直播间」和「连数据源」，
- * 这里显式列出来，省得对着文档一步步找。
+ * 新手上路：把“客户能自己跑出第一份报表”要做的几件事串成清单。
+ * 每项自动检测状态；全部完成就自动隐藏，系统自检入口始终保留在左侧导航。
  */
 export function OnboardingGuide({
   onOpenWindow,
@@ -38,14 +37,21 @@ export function OnboardingGuide({
   );
 
   async function refresh() {
-    const [cfg, cdp, llm, logs] = await Promise.all([
+    const [cfg, cdp, api, doctor, llm, logs] = await Promise.all([
       getLocalConfig().catch(() => null),
       getCdpConnection().catch(() => null),
+      getApiConnectionStatus().catch(() => null),
+      getSystemDoctor().catch(() => null),
       getLlmConnectionStatus().catch(() => null),
       getLiveWatchLogs(1).catch(() => [])
     ]);
     const roomName = (cfg as { effective?: { room_name?: string } } | null)?.effective?.room_name || "";
     const cdpOn = Boolean((cdp as { connected?: boolean } | null)?.connected);
+    const apiStatus = api as { configured?: boolean; advertiser_id?: number } | null;
+    const apiOn = Boolean(apiStatus?.configured && Number(apiStatus?.advertiser_id) > 0);
+    const dataSourceOn = cdpOn || apiOn;
+    const doctorBlocked = (doctor as { status?: string } | null)?.status === "blocked";
+    const doctorDone = Boolean(doctor) && !doctorBlocked;
     const llmOn = Boolean(
       (llm as { configured?: boolean; api_key_configured?: boolean } | null)?.configured ||
         (llm as { api_key_configured?: boolean } | null)?.api_key_configured
@@ -61,11 +67,22 @@ export function OnboardingGuide({
         action: { label: "去填写", kind: "open", target: "advanced" }
       },
       {
-        key: "cdp",
-        title: "连接数据源（本机 Chrome）",
-        done: cdpOn,
-        hint: cdpOn ? "已连接" : "点这里自动拉起调试浏览器；第一次要在弹出的窗口登录千川",
-        action: { label: cdpOn ? "重连" : "连接数据源", kind: "connect" }
+        key: "data_source",
+        title: "连接数据源（本机浏览器）",
+        done: dataSourceOn,
+        hint: dataSourceOn
+          ? apiOn
+            ? "开放平台连接已配置"
+            : "本机浏览器已连接"
+          : "点这里自动拉起连接；第一次要在弹出的窗口登录千川",
+        action: { label: dataSourceOn ? "查看连接" : "连接数据源", kind: dataSourceOn ? "open" : "connect", target: "advanced" }
+      },
+      {
+        key: "doctor",
+        title: "运行一键自检",
+        done: doctorDone,
+        hint: doctorDone ? "部署检查通过，可查看具体提醒" : "检查运行环境、数据库、数据连接和客户界面",
+        action: { label: doctorDone ? "重新自检" : "运行自检", kind: "doctor", target: "system" }
       },
       {
         key: "llm",
@@ -101,7 +118,7 @@ export function OnboardingGuide({
 
   async function run(step: Step) {
     if (!step.action) return;
-    if (step.action.kind === "open") {
+    if (step.action.kind === "open" || step.action.kind === "doctor") {
       onOpenWindow?.(step.action.target || "");
       return;
     }
@@ -142,7 +159,7 @@ export function OnboardingGuide({
               {step.optional ? "（可选）" : ""}
             </span>
             <span className="onboarding-hint">{step.hint}</span>
-            {!step.done && step.action ? (
+            {(!step.done || step.key === "doctor") && step.action ? (
               <button className="button-outline" type="button" onClick={() => run(step)} disabled={busy}>
                 {step.action.label}
               </button>

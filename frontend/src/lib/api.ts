@@ -804,3 +804,43 @@ export async function saveLocalConfig(patch: {
   clearGetCache("/api/local-config");
   return response.json();
 }
+
+// --- 客户部署自检 -----------------------------------------------------------
+
+export type SystemDoctorStatus = "ready" | "attention" | "blocked";
+export type SystemDoctorCheckStatus = "ok" | "warning" | "blocked";
+
+export type SystemDoctorCheck = {
+  key: string;
+  label: string;
+  status: SystemDoctorCheckStatus;
+  message: string;
+  action_label: string;
+  action_target: string;
+  optional: boolean;
+};
+
+export type SystemDoctorReport = {
+  status: SystemDoctorStatus;
+  ready: boolean;
+  generated_at: string;
+  environment: {
+    app_version: string;
+    python: string;
+    platform: string;
+    deployment: string;
+  };
+  summary: {
+    total: number;
+    ok: number;
+    warning: number;
+    blocked: number;
+  };
+  checks: SystemDoctorCheck[];
+};
+
+export async function getSystemDoctor(): Promise<SystemDoctorReport> {
+  const response = await fetch(`${API_BASE}/api/system/doctor`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Failed to run system doctor");
+  return response.json();
+}

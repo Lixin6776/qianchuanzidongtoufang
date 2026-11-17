@@ -14,6 +14,14 @@ vi.mock("../lib/api", () => ({
   getCdpConnection: vi.fn().mockResolvedValue({
     connected: true, pages: 1, qianchuan_pages: 1, error: null
   }),
+  getSystemDoctor: vi.fn().mockResolvedValue({
+    status: "attention",
+    ready: true,
+    generated_at: "2026-11-17T10:00:00+00:00",
+    environment: { app_version: "0.1.0", python: "3.12.8", platform: "Windows-11", deployment: "single_account_local" },
+    summary: { total: 1, ok: 0, warning: 1, blocked: 0 },
+    checks: []
+  }),
   tickLiveWatch: vi.fn().mockResolvedValue({}),
   createOpsTaskFromLiveWatch: vi.fn().mockResolvedValue({ id: "task-1", status: "open" }),
   getKnowledgeOverview: vi.fn().mockResolvedValue({ mode: "empty", files: [], historical_reference: null }),

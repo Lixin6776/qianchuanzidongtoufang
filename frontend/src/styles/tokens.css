@@ -3188,3 +3188,97 @@ a.button-outline {
 .ops-task-wide { grid-column: 1 / -1; }
 .ops-task-check { display: flex !important; align-items: center; gap: 7px !important; }
 @media (max-width: 640px) { .ops-task-form-grid { grid-template-columns: 1fr; } .ops-task-wide { grid-column: auto; } }
+
+/* Customer deployment doctor */
+.system-health-panel { max-width: 980px; }
+.system-health-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid #dbe5f2;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(37, 99, 235, 0.09), transparent 36%),
+    linear-gradient(135deg, #f8fbff 0%, #ffffff 70%);
+}
+.system-health-summary h3 { margin: 3px 0 6px; color: #10213f; font-size: 22px; }
+.system-health-summary.status-blocked { border-color: #f1c8c8; background: linear-gradient(135deg, #fff9f9 0%, #ffffff 70%); }
+.system-health-summary.status-attention { border-color: #f0d7a7; background: linear-gradient(135deg, #fffcf3 0%, #ffffff 70%); }
+.system-health-caption { margin: 0; color: #6f8199; font-size: 12px; line-height: 1.6; }
+.system-health-counts {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+.system-health-counts span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 1px solid #e1e8f2;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #6c7c91;
+  font-size: 11px;
+}
+.system-health-counts strong { color: #1f3760; font-size: 14px; }
+.system-health-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.system-health-check {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid #e1e8f2;
+  border-radius: 10px;
+  background: #fff;
+}
+.system-health-check.status-blocked { border-color: #f0caca; background: #fffafa; }
+.system-health-check.status-warning { border-color: #f0dfbd; background: #fffdf8; }
+.system-health-status {
+  display: inline-flex;
+  justify-content: center;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e9f7ee;
+  color: #2f6b41;
+  font-size: 11px;
+  font-weight: 700;
+}
+.status-blocked .system-health-status { background: #fdecec; color: #a63b3b; }
+.status-warning .system-health-status { background: #fff4d8; color: #8a641c; }
+.system-health-check-copy { min-width: 0; }
+.system-health-check-heading { display: flex; align-items: center; gap: 7px; }
+.system-health-check-heading strong { color: #19345d; font-size: 13px; }
+.system-health-check-heading span {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef3fa;
+  color: #71829a;
+  font-size: 10px;
+}
+.system-health-check-copy p { margin: 3px 0 0; color: #61738e; font-size: 12px; line-height: 1.55; }
+.system-health-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #f0caca;
+  border-radius: 9px;
+  background: #fff8f8;
+  color: #9f3c3c;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .system-health-summary { align-items: flex-start; flex-direction: column; }
+  .system-health-summary .button-primary { width: 100%; }
+  .system-health-counts { flex-wrap: wrap; }
+  .system-health-check { grid-template-columns: 52px minmax(0, 1fr); }
+  .system-health-check .button-outline { grid-column: 1 / -1; width: 100%; }
+}

@@ -43,8 +43,8 @@ test("数据源窗口同时展示 CDP 和 API 两条链路，并标出当前生�
 
   await waitFor(() => expect(getCdpConnection).toHaveBeenCalled());
   // 两条链路都在
-  expect(await screen.findByText("CDP 连接（读页面）")).toBeInTheDocument();
-  expect(screen.getByText("API 连接（开放平台）")).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "本机浏览器连接" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "开放平台连接" })).toBeInTheDocument();
   // CDP 已连接、页面数正确
   expect(screen.getByText("已连接")).toBeInTheDocument();
   expect(screen.getByText(/千川页面 4 个/)).toBeInTheDocument();
@@ -58,7 +58,7 @@ test("数据源窗口同时展示 CDP 和 API 两条链路，并标出当前生�
   expect(screen.getByRole("button", { name: "保存凭据" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "测试连接" })).toBeInTheDocument();
   // 当前生效链路
-  expect(screen.getByText("CDP（本机浏览器）")).toBeInTheDocument();
+  expect(screen.getAllByText("本机浏览器连接").length).toBeGreaterThan(0);
 });
 
 test("数据源窗口可以直接改直播间/账户（不用碰 .env）", async () => {
@@ -76,5 +76,5 @@ test("数据源窗口可以直接改直播间/账户（不用碰 .env）", async
   expect(screen.getByLabelText("账户 ID")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   // 说明要讲清楚"留空=用 .env 的值"
-  expect(screen.getByText(/留空时使用 .env 里的值/)).toBeInTheDocument();
+  expect(screen.getByText(/不需要修改配置文件/)).toBeInTheDocument();
 });

@@ -17,6 +17,7 @@ import { DecisionPanel } from "./components/DecisionPanel";
 import { type LiveMonitorEvent } from "./components/LiveMonitorPanel";
 import { LlmConnectionPanel } from "./components/LlmConnectionPanel";
 import { StrategyBanner, type StrategyBannerProfile } from "./components/StrategyBanner";
+import { SystemHealthPanel } from "./components/SystemHealthPanel";
 import { ThresholdPanel } from "./components/ThresholdPanel";
 import { ToolIcon } from "./components/ToolIcon";
 import {
@@ -94,7 +95,7 @@ type ExecutionJob = {
   created_at: string;
 };
 
-type ToolWindow = "live_watch" | "decisions" | "tasks" | "jobs" | "llm" | "api" | "learning" | "evaluation" | "feishu" | "advanced" | "asset";
+type ToolWindow = "live_watch" | "decisions" | "tasks" | "jobs" | "llm" | "api" | "learning" | "evaluation" | "feishu" | "advanced" | "system" | "asset";
 
 const tools: Array<{ id: ToolWindow; label: string }> = [
   { id: "live_watch", label: "直播盯盘" },
@@ -106,6 +107,7 @@ const tools: Array<{ id: ToolWindow; label: string }> = [
   { id: "evaluation", label: "素材分析" },
   { id: "feishu", label: "飞书" },
   { id: "advanced", label: "数据源" },
+  { id: "system", label: "系统自检" },
   { id: "asset", label: "数据资产" }
 ];
 
@@ -326,6 +328,19 @@ export default function App() {
     setSelectedPreview(null);
   }
 
+  function openToolWindow(windowId: string) {
+    if (!windowId) return;
+    if (windowId === "data_source") {
+      setActiveWindow("advanced");
+      return;
+    }
+    if (windowId === "live_watch") {
+      setActiveWindow(null);
+      return;
+    }
+    setActiveWindow(windowId as ToolWindow);
+  }
+
   function renderWindow() {
     if (activeWindow === "decisions") {
       // 「投手知识库」= 账户判断标准与后续运营规则沉淀
@@ -364,6 +379,9 @@ export default function App() {
     if (activeWindow === "asset") {
       return <DataAssetPanel />;
     }
+    if (activeWindow === "system") {
+      return <SystemHealthPanel onOpenWindow={openToolWindow} />;
+    }
     if (activeWindow === "advanced") {
       // 「数据源」：CDP 与 API 两条读取链路统一在这里管
       return <DataSourcePanel />;
@@ -379,10 +397,7 @@ export default function App() {
         <StrategyBanner profile={profile} />
         <LiveStatusCard />
         <OnboardingGuide
-          onOpenWindow={(windowId) => {
-            if (!windowId) return;
-            setActiveWindow(windowId === "live_watch" ? null : windowId as ToolWindow);
-          }}
+          onOpenWindow={openToolWindow}
           onTick={() => {
             // 引导里的"立即读取"：直接触发一轮盯盘
             tickLiveWatch().catch(() => undefined);

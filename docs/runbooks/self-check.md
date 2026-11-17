@@ -21,9 +21,11 @@ Invoke-RestMethod http://127.0.0.1:8000/api/live-watch/status | Select running,d
 (Invoke-WebRequest http://127.0.0.1:5173 -UseBasicParsing).StatusCode   # 期望 200
 # 数据源
 (Invoke-WebRequest http://127.0.0.1:9222/json/version -UseBasicParsing).Content
+# 客户部署自检
+Invoke-RestMethod http://127.0.0.1:8000/api/system/doctor | ConvertTo-Json -Depth 8
 ```
 
-**预期**：后端 200、`consecutive_failures=0`；前端 200；CDP 返回 `Chrome/...`。
+**预期**：后端 200、`consecutive_failures=0`；前端 200；CDP 返回 `Chrome/...`；自检没有新的 `blocked`。
 
 ## 2. 数据资产
 
@@ -47,7 +49,7 @@ Push-Location backend
 Pop-Location
 ```
 
-**预期**：全绿（允许 1 个 `s` 跳过）。当前基线：**241 passed, 1 skipped**。
+**预期**：0 failed（允许环境相关跳过）。以本次实际输出为准，不硬编码测试数量。
 
 ## 4. 前端测试 + 类型检查
 
@@ -56,7 +58,7 @@ pnpm --dir frontend exec vitest run
 Push-Location frontend; & node_modules\.bin\tsc.cmd --noEmit; "tsc exit=$LASTEXITCODE"; Pop-Location
 ```
 
-**预期**：23 文件 / 43 测试全过；`tsc exit=0`。
+**预期**：0 failed；`tsc exit=0`。以本次实际输出为准，不硬编码测试数量。
 
 ## 5. 全接口冒烟（抓 500）
 

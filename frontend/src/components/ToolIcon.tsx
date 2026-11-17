@@ -8,6 +8,7 @@ type ToolIconName =
   | "evaluation"
   | "feishu"
   | "advanced"
+  | "system"
   | "api"
   | "asset";
 
@@ -45,6 +46,9 @@ export function ToolIcon({ name }: { name: ToolIconName }) {
   }
   if (name === "feishu") {
     return <svg {...props}><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>;
+  }
+  if (name === "system") {
+    return <svg {...props}><path d="M12 3 20 6v5c0 5-3.4 8.1-8 10-4.6-1.9-8-5-8-10V6Z" /><path d="m8.5 12 2.2 2.2 4.8-5" /></svg>;
   }
   if (name === "advanced" || name === "api") {
     return <svg {...props}><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" /></svg>;

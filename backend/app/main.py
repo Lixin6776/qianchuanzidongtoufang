@@ -32,6 +32,7 @@ from app.api.ops_tasks import router as ops_tasks_router
 from app.api.plans import router as plans_router
 from app.api.profiles import router as profiles_router
 from app.api.recommendations import router as recommendations_router
+from app.api.system import router as system_router
 from app.config import settings
 from app.db import Base, SessionLocal, engine
 from app.db_schema import ensure_runtime_schema
@@ -875,6 +876,7 @@ app.include_router(ops_tasks_router)
 app.include_router(local_config_router)
 app.include_router(llm_connection_router)
 app.include_router(recommendations_router)
+app.include_router(system_router)
 
 
 @app.get("/health")

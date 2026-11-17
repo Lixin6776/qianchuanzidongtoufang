@@ -165,12 +165,12 @@ export function DataSourcePanel() {
     }
   }
 
-  const activeSource = api?.configured && api.provider_preference === "api" ? "API（开放平台）" : "CDP（本机浏览器）";
+  const activeSource = api?.configured && api.provider_preference === "api" ? "开放平台连接" : "本机浏览器连接";
   const cdpReady = Boolean(cdp?.connected);
 
   return (
     <section className="data-source-panel">
-      <p className="eyebrow">Data source</p>
+      <p className="eyebrow">Data connection</p>
       <h3>数据源</h3>
       <p className="ops-role-desc">
         工具读千川数据有两条链路，任一时刻只用一条。当前生效：
@@ -180,7 +180,7 @@ export function DataSourcePanel() {
       <section className="data-source-config">
         <h4>盯哪个直播间 / 账户</h4>
         <p className="monitor-signal">
-          填在这里就不用改 backend/.env 了。留空时使用 .env 里的值。
+          填写当前要盯的直播间和账户，不需要修改配置文件。
           {effective.room_name ? ` 当前生效：${effective.room_name}` : ""}
           {effective.aavid ? `（账户 ${effective.aavid}）` : ""}
         </p>
@@ -212,7 +212,7 @@ export function DataSourcePanel() {
       <div className="data-source-grid">
         <section className={`data-source-card${cdpReady ? " is-active" : ""}`}>
           <header>
-            <h4>CDP 连接（读页面）</h4>
+            <h4>本机浏览器连接</h4>
             <span>{cdpReady ? "已连接" : "未连接"}</span>
           </header>
           <ul>
@@ -232,7 +232,7 @@ export function DataSourcePanel() {
 
         <section className={`data-source-card${!cdpReady && api?.configured ? " is-active" : ""}`}>
           <header>
-            <h4>API 连接（开放平台）</h4>
+            <h4>开放平台连接</h4>
             <span>{api?.configured ? "已配置" : "未配置"}</span>
           </header>
           <ul>
