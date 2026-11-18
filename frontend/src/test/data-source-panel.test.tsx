@@ -1,13 +1,17 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 const getCdpConnection = vi.fn();
+const getAccountHistory = vi.fn();
+const bootstrapAccountHistory = vi.fn();
 const getApiConnectionStatus = vi.fn();
 const getLocalConfig = vi.fn();
 const saveLocalConfig = vi.fn();
 
 vi.mock("../lib/api", () => ({
   getCdpConnection: (...a: unknown[]) => getCdpConnection(...a),
+  getAccountHistory: (...a: unknown[]) => getAccountHistory(...a),
+  bootstrapAccountHistory: (...a: unknown[]) => bootstrapAccountHistory(...a),
   getApiConnectionStatus: (...a: unknown[]) => getApiConnectionStatus(...a),
   getLocalConfig: (...a: unknown[]) => getLocalConfig(...a),
   saveLocalConfig: (...a: unknown[]) => saveLocalConfig(...a),
@@ -18,6 +22,11 @@ vi.mock("../lib/api", () => ({
 }));
 
 import { DataSourcePanel } from "../components/DataSourcePanel";
+
+beforeEach(() => {
+  getAccountHistory.mockResolvedValue({ account_id: "", configured: false, history: null });
+  bootstrapAccountHistory.mockResolvedValue(null);
+});
 
 test("数据源窗口同时展示 CDP 和 API 两条链路，并标出当前生效", async () => {
   getCdpConnection.mockResolvedValue({
@@ -59,6 +68,44 @@ test("数据源窗口同时展示 CDP 和 API 两条链路，并标出当前生�
   expect(screen.getByRole("button", { name: "测试连接" })).toBeInTheDocument();
   // 当前生效链路
   expect(screen.getAllByText("本机浏览器连接").length).toBeGreaterThan(0);
+});
+
+test("账户近30天数据底座可以手动读取并展示真实汇总", async () => {
+  getCdpConnection.mockResolvedValue({ connected: true, pages: 1, qianchuan_pages: 1, error: null, endpoint: "x", browser: "" });
+  getApiConnectionStatus.mockResolvedValue({ configured: false, provider_preference: "cdp" });
+  getLocalConfig.mockResolvedValue({
+    saved: {},
+    effective: { room_name: "质润官方旗舰店", aavid: "1873104018827399" }
+  });
+  getAccountHistory.mockResolvedValue({
+    account_id: "1873104018827399",
+    configured: true,
+    history: null
+  });
+  bootstrapAccountHistory.mockResolvedValue({
+    account_id: "1873104018827399",
+    room_name: "质润官方旗舰店",
+    source: "cdp",
+    range: { start: "2026-10-20", end: "2026-11-18", days: 30 },
+    imported_at: "2026-11-18T10:00:00+00:00",
+    summary: {
+      spend: 2933164.12,
+      gmv: 6003556.89,
+      orders: 35184,
+      roi: 2.05,
+      roi_definition: "综合营销ROI（结算口径）"
+    },
+    daily: [],
+    quality: { status: "good", days_with_data: 30, active_days: 29, notes: [] }
+  });
+
+  render(<DataSourcePanel />);
+
+  expect(await screen.findByText("账户近30天数据底座")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "读取近30天数据" }));
+  await waitFor(() => expect(bootstrapAccountHistory).toHaveBeenCalledWith(true));
+  expect(await screen.findByText("2.05")).toBeInTheDocument();
+  expect(screen.getByText(/有效天数/)).toBeInTheDocument();
 });
 
 test("数据源窗口可以直接改直播间/账户（不用碰 .env）", async () => {

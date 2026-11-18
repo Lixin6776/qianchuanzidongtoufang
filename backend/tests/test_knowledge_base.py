@@ -2,7 +2,7 @@ import base64
 from datetime import UTC, datetime, timedelta
 
 from app.api import knowledge_base as knowledge_api
-from app.services.knowledge_base import KnowledgeBaseStore
+from app.services.knowledge_base import KnowledgeBaseStore, build_historical_reference
 
 
 def test_text_knowledge_file_is_saved_and_available_as_excerpt(tmp_path):
@@ -207,3 +207,26 @@ def test_knowledge_toggle_api(client, tmp_path, monkeypatch):
     assert response.status_code == 200
     assert response.json()["enabled"] is False
     assert store.list_files()[0]["enabled"] is False
+
+def test_account_history_becomes_the_default_data_foundation():
+    record = {
+        "range": {"start": "2026-10-20", "end": "2026-11-18", "days": 30},
+        "source": "cdp",
+        "daily": [
+            {"date": "2026-11-17", "roi": 2.0, "spend": 1000, "gmv": 2000, "orders": 10},
+            {"date": "2026-11-18", "roi": 1.8, "spend": 500, "gmv": 900, "orders": 8},
+        ],
+        "quality": {"status": "good", "days_with_data": 2},
+    }
+
+    reference = build_historical_reference([], account_history=record)
+
+    assert reference["sample_count"] == 2
+    assert reference["window_start"] == "2026-10-20"
+    assert reference["window_end"] == "2026-11-18"
+    metrics = {item["key"]: item for item in reference["metrics"]}
+    assert metrics["roi"]["average"] == 1.9
+    assert metrics["spend"]["average"] == 750.0
+    assert metrics["gmv"]["average"] == 1450.0
+    assert metrics["orders"]["average"] == 9.0
+    assert "近30天" in reference["note"]

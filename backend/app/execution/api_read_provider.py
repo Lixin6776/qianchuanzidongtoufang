@@ -1,3 +1,5 @@
+import json
+
 from app.execution.cdp.page_adapter import PlanPageSnapshot
 from app.services.api_endpoint_map import EndpointMap
 
@@ -37,7 +39,7 @@ class ApiReadProvider:
             method,
             path,
             params={"advertiser_id": self.advertiser_id},
-        ).json()["data"]
+        ).json()
 
     def get_reports(self, report_type: str = "plan_report") -> dict:
         method, path = self.endpoints[report_type]
@@ -45,4 +47,24 @@ class ApiReadProvider:
             method,
             path,
             params={"advertiser_id": self.advertiser_id},
-        ).json()["data"]
+        ).json()
+
+    def get_account_history(self, start_date: str, end_date: str) -> dict:
+        method, path = self.endpoints["account_report"]
+        fields = "stat_datetime,stat_cost,pay_order_amount,pay_order_count,prepay_and_pay_order_roi,show_cnt,click_cnt"
+        return self.client.request(
+            method,
+            path,
+            params={
+                "advertiser_id": self.advertiser_id,
+                "start_date": start_date,
+                "end_date": end_date,
+                "fields": fields,
+                "filtering": json.dumps({"marketing_goal": "LIVE_PROM_GOODS"}),
+                "time_granularity": "TIME_GRANULARITY_DAILY",
+                "order_field": "stat_datetime",
+                "order_type": "ASC",
+                "page": 1,
+                "page_size": 100,
+            },
+        ).json()

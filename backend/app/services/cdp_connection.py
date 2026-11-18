@@ -58,7 +58,7 @@ async def ensure_pages(endpoint: str, urls: list[str] | None = None) -> list[str
                     await client.put(f"{endpoint}/json/new?{url}")
                     opened.append(url)
                     existing.append(url)
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001,S112
                     continue
     except Exception:  # noqa: BLE001
         return opened
@@ -213,7 +213,7 @@ async def connect(
         }
     )
     if status["connected"]:
-        status["opened_pages"] = await ensure_pages(endpoint)
+        status["opened_pages"] = []
         # 浏览器里可能同时留着一个 /login 标签（历史遗留），但千川页面是正常登录的。
         # 只有"有登录页 **且** 一个千川页都没有"时，才算真的没登录 —— 否则会误报"需要登录千川"。
         status["needs_login"] = bool(status.get("login_pages")) and not status.get(
@@ -275,7 +275,7 @@ async def connect(
             )
         elif sys.platform == "darwin":
             kwargs["start_new_session"] = True
-        subprocess.Popen(args, close_fds=True, **kwargs)
+        subprocess.Popen(args, close_fds=True, **kwargs)  # noqa: ASYNC220
     except (OSError, subprocess.SubprocessError) as exc:
         status["message"] = f"拉起 Chrome 失败：{exc}"
         return status
@@ -294,7 +294,7 @@ async def connect(
             status["launched"] = True
             status["profile"] = str(profile)
             status["profile_kind"] = kind
-            status["opened_pages"] = await ensure_pages(endpoint)
+            status["opened_pages"] = []
             status["needs_login"] = bool(current.get("login_pages"))
             if not status["needs_login"] and kind == "assistant":
                 status["needs_login"] = not _profile_has_login(profile)

@@ -4,6 +4,9 @@ import binascii
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
+from app.config import settings
+from app.services import local_config
+from app.services.account_history import AccountHistoryStore
 from app.services.knowledge_base import KnowledgeBaseStore
 
 router = APIRouter(prefix="/api/knowledge-base", tags=["knowledge-base"])
@@ -29,7 +32,9 @@ def _reports(request: Request) -> list[dict]:
 
 @router.get("")
 def knowledge_overview(request: Request) -> dict:
-    return KnowledgeBaseStore().overview(_reports(request))
+    account_id = local_config.aavid(settings.aavid)
+    account_history = AccountHistoryStore().get(account_id) if account_id else None
+    return KnowledgeBaseStore().overview(_reports(request), account_history)
 
 
 @router.post("/files", status_code=201)

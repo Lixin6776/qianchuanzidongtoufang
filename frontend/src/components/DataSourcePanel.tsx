@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
 import {
+  bootstrapAccountHistory,
   connectCdp,
+  getAccountHistory,
   getApiConnectionStatus,
   getCdpConnection,
   getLocalConfig,
@@ -9,11 +11,28 @@ import {
   saveApiConnection,
   saveLocalConfig,
   testApiConnection,
+  type AccountHistoryRecord,
   type ApiConnectionStatus,
   type CdpConnectionStatus
 } from "../lib/api";
 
 type ApiStatus = ApiConnectionStatus;
+
+function moneyText(value?: number | null): string {
+  if (value === null || value === undefined) return "未读取";
+  return `¥${value.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}`;
+}
+
+function numberText(value?: number | null): string {
+  if (value === null || value === undefined) return "未读取";
+  return value.toLocaleString("zh-CN");
+}
+
+function importedText(value?: string): string {
+  if (!value) return "--";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString("zh-CN");
+}
 
 /**
  * 数据源：一个窗口管两条读取链路。
@@ -26,6 +45,7 @@ export function DataSourcePanel() {
   const [api, setApi] = useState<ApiStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [history, setHistory] = useState<AccountHistoryRecord | null>(null);
   // 本机配置：盯哪个直播间 / 哪个账户（不用改 .env）
   const [form, setForm] = useState({ room_name: "", aavid: "" });
   const [effective, setEffective] = useState({ room_name: "", aavid: "" });
@@ -40,6 +60,12 @@ export function DataSourcePanel() {
   });
 
   async function refresh() {
+    try {
+      const accountHistory = await getAccountHistory();
+      setHistory(accountHistory.history);
+    } catch {
+      setHistory(null);
+    }
     try {
       setCdp(await getCdpConnection());
     } catch {
@@ -99,13 +125,34 @@ export function DataSourcePanel() {
 
   async function handleConnect() {
     setBusy(true);
-    setNotice("正在连接调试浏览器（第一次可能要在弹出的窗口里登录千川）...");
+    setNotice("正在连接数据源，并读取账户近30天数据底座...");
     try {
       const next = await connectCdp("auto");
       setCdp(next);
-      setNotice(next.message || (next.connected ? "数据源已连接" : "还没连上"));
+      await refresh();
+      if (next.account_history_error) {
+        setNotice(`数据源已连接，但近30天读取失败：${next.account_history_error}`);
+      } else {
+        setNotice(next.message || (next.connected ? "数据源已连接，近30天数据底座已就绪" : "还没连上"));
+      }
     } catch {
       setNotice("连接失败，确认本机装了 Chrome 再试");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleBootstrapHistory() {
+    setBusy(true);
+    setNotice("正在读取账户近30天数据；首次读取会打开一个千川页面，完成后自动关闭。");
+    try {
+      const record = await bootstrapAccountHistory(true);
+      setHistory(record);
+      setNotice(
+        `近30天数据已更新：${record.range.start} 至 ${record.range.end}，来源${record.source === "api" ? "开放平台" : "本机浏览器"}`
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "近30天数据读取失败");
     } finally {
       setBusy(false);
     }
@@ -143,7 +190,17 @@ export function DataSourcePanel() {
     setNotice("正在测试开放平台连接（会去拉一次广告主信息）...");
     try {
       const result = await testApiConnection();
-      setNotice(result.message || "API 连接成功");
+      try {
+        const record = await bootstrapAccountHistory(true);
+        setHistory(record);
+        setNotice(`${result.message || "API 连接成功"}；账户近30天数据底座已更新`);
+      } catch (historyError) {
+        setNotice(
+          `${result.message || "API 连接成功"}；近30天数据读取失败：${
+            historyError instanceof Error ? historyError.message : "未知错误"
+          }`
+        );
+      }
       await refresh();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "API 连接测试失败");
@@ -207,6 +264,49 @@ export function DataSourcePanel() {
             保存
           </button>
         </div>
+      </section>
+
+      <section className="account-history-card">
+        <header>
+          <div>
+            <p className="eyebrow">Data foundation</p>
+            <h4>账户近30天数据底座</h4>
+          </div>
+          <span className={history ? "is-ready" : ""}>
+            {history ? (history.quality.status === "good" ? "已就绪" : "部分数据") : "未读取"}
+          </span>
+        </header>
+        <p className="monitor-signal">
+          新数据源首次连接后自动读取；用真实 30 天数据建立账户基线。首次读取会打开一个千川页面，完成后自动关闭。
+        </p>
+        {history ? (
+          <>
+            <div className="account-history-metrics">
+              <div><span>综合营销ROI</span><strong>{history.summary.roi ?? "未读取"}</strong></div>
+              <div><span>消耗</span><strong>{moneyText(history.summary.spend)}</strong></div>
+              <div><span>结算GMV</span><strong>{moneyText(history.summary.gmv)}</strong></div>
+              <div><span>成交订单</span><strong>{numberText(history.summary.orders)}</strong></div>
+              <div><span>有效天数</span><strong>{history.quality.active_days ?? history.quality.days_with_data} 天</strong></div>
+            </div>
+            <p className="monitor-signal">
+              区间 {history.range.start} 至 {history.range.end} · 来源
+              {history.source === "api" ? "开放平台" : "本机浏览器"} · 读取时间 {importedText(history.imported_at)}
+            </p>
+            {history.summary.roi_definition ? (
+              <p className="monitor-signal">口径：{history.summary.roi_definition}</p>
+            ) : null}
+            {history.quality.notes?.length ? (
+              <ul className="account-history-notes">
+                {history.quality.notes.map((note) => <li key={note}>{note}</li>)}
+              </ul>
+            ) : null}
+          </>
+        ) : (
+          <p className="monitor-signal">连接数据源后，这里会显示近30天 ROI、消耗、结算 GMV、订单和有效天数。</p>
+        )}
+        <button className="button-outline" type="button" onClick={handleBootstrapHistory} disabled={busy}>
+          {busy ? "读取中..." : history ? "重新读取近30天" : "读取近30天数据"}
+        </button>
       </section>
 
       <div className="data-source-grid">

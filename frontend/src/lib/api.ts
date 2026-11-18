@@ -531,6 +531,7 @@ export type CdpConnectionStatus = {
   needs_chrome_restart?: boolean;
   mode_used?: string;
   message?: string;
+  account_history_error?: string;
 };
 
 export type LivePriorityAction = {
@@ -636,7 +637,16 @@ export async function connectCdp(
   );
   if (!response.ok) throw new Error("Failed to connect data source");
   clearGetCache("/api/live-watch/connection", "/api/api-connection/status");
-  return response.json();
+  const result = (await response.json()) as CdpConnectionStatus;
+  if (result.connected) {
+    try {
+      await bootstrapAccountHistory(false);
+    } catch (error) {
+      result.account_history_error =
+        error instanceof Error ? error.message : "账户近30天数据读取失败";
+    }
+  }
+  return result;
 }
 
 export async function heartbeatLiveWatch(): Promise<LiveWatchStatus> {
@@ -843,4 +853,58 @@ export async function getSystemDoctor(): Promise<SystemDoctorReport> {
   const response = await fetch(`${API_BASE}/api/system/doctor`, { cache: "no-store" });
   if (!response.ok) throw new Error("Failed to run system doctor");
   return response.json();
+}
+
+// --- 账户近 30 天数据底座 ----------------------------------------------------
+
+export type AccountHistorySummary = {
+  spend: number | null;
+  gmv: number | null;
+  pay_gmv?: number | null;
+  orders: number | null;
+  roi: number | null;
+  refund_rate?: number | null;
+  cost_per_order?: number | null;
+  roi_definition?: string;
+};
+
+export type AccountHistoryRecord = {
+  account_id: string;
+  room_name: string;
+  source: "api" | "cdp";
+  range: { start: string; end: string; days: number };
+  imported_at: string;
+  summary: AccountHistorySummary;
+  daily: Array<Record<string, unknown>>;
+  quality: {
+    status: "good" | "partial";
+    days_with_data: number;
+    active_days?: number;
+    missing_fields?: string[];
+    notes?: string[];
+  };
+  cache_hit?: boolean;
+};
+
+export async function getAccountHistory(): Promise<{
+  account_id: string;
+  configured: boolean;
+  history: AccountHistoryRecord | null;
+}> {
+  return cachedGet("/api/account-history", 5_000);
+}
+
+export async function bootstrapAccountHistory(
+  force = false
+): Promise<AccountHistoryRecord> {
+  const response = await fetch(
+    `${API_BASE}/api/account-history/bootstrap?force=${force ? "true" : "false"}`,
+    { method: "POST" }
+  );
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body?.detail || "账户近30天数据读取失败");
+  }
+  clearGetCache("/api/account-history");
+  return body;
 }

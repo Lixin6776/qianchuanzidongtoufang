@@ -22,6 +22,9 @@ METRIC_FIELDS = {
     "view_conversion_rate": ("观看成交转化率", "%", 2),
     "online_viewers": ("在线人数均值", "人", 0),
     "assist_share": ("追投/调控占比", "%", 1),
+    "spend": ("近30天日均消耗", "元", 2),
+    "gmv": ("近30天日均结算GMV", "元", 2),
+    "orders": ("近30天日均订单", "单", 0),
 }
 
 
@@ -37,8 +40,11 @@ def _numeric(value: Any) -> float | None:
 def _iso(value: Any) -> str | None:
     if not value:
         return None
+    text = str(value)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(text)
     except (TypeError, ValueError):
         return str(value)
     return parsed.isoformat()
@@ -53,7 +59,53 @@ def _assist_share(report: dict) -> float | None:
     return assist / (basic + assist) * 100
 
 
-def build_historical_reference(reports: list[dict]) -> dict:
+def _account_history_reference(record: dict | None) -> dict | None:
+    if not record:
+        return None
+    daily = record.get("daily") or []
+    if not isinstance(daily, list) or not daily:
+        return None
+    buckets = {key: [] for key in METRIC_FIELDS}
+    for item in daily:
+        if not isinstance(item, dict):
+            continue
+        for key in ("roi", "spend", "gmv", "orders"):
+            value = _numeric(item.get(key))
+            if value is not None:
+                buckets[key].append(value)
+    metrics: list[dict] = []
+    for key, (label, unit, digits) in METRIC_FIELDS.items():
+        values = buckets[key]
+        if not values:
+            continue
+        metrics.append(
+            {
+                "key": key,
+                "label": label,
+                "average": round(sum(values) / len(values), digits),
+                "unit": unit,
+                "samples": len(values),
+            }
+        )
+    if not metrics:
+        return None
+    range_value = record.get("range") or {}
+    return {
+        "sample_count": len(daily),
+        "window_start": range_value.get("start"),
+        "window_end": range_value.get("end"),
+        "metrics": metrics,
+        "note": (
+            "未上传知识文件时，使用新数据源连接后读取的账户近30天日报作为数据底座；"
+            "仅作历史参考，不是规则，也不代表未来一定如此。"
+        ),
+    }
+
+
+def build_historical_reference(reports: list[dict], account_history: dict | None = None) -> dict:
+    account_reference = _account_history_reference(account_history)
+    if account_reference is not None:
+        return account_reference
     valid: list[dict] = []
     for report in reports:
         if str(report.get("source") or "") == "cdp-error":
@@ -227,10 +279,10 @@ class KnowledgeBaseStore:
             used += len(chunks[-1])
         return "\n\n".join(chunks)
 
-    def overview(self, reports: list[dict]) -> dict:
+    def overview(self, reports: list[dict], account_history: dict | None = None) -> dict:
         files = [self._public(item) for item in self.list_files()]
         active_count = sum(1 for item in files if item.get("enabled", True))
-        historical = None if active_count else build_historical_reference(reports)
+        historical = None if active_count else build_historical_reference(reports, account_history)
         if active_count:
             mode = "uploaded"
         elif historical and historical.get("metrics"):

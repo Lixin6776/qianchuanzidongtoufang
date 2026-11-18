@@ -74,5 +74,6 @@ class EndpointMap:
             "account_info": ("GET", "/open_api/v1.0/qianchuan/advertiser/info/"),
             "plan_list": ("GET", "/open_api/v1.0/qianchuan/ad/get/"),
             "plan_report": ("GET", "/open_api/v1.0/qianchuan/report/ad/get/"),
+            "account_report": ("GET", "/open_api/v1.0/qianchuan/report/advertiser/get/"),
             "live_room_report": ("GET", "/open_api/v1.0/qianchuan/report/live/get/"),
         }
