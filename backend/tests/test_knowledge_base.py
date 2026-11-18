@@ -210,7 +210,7 @@ def test_knowledge_toggle_api(client, tmp_path, monkeypatch):
 
 def test_account_history_becomes_the_default_data_foundation():
     record = {
-        "range": {"start": "2026-10-20", "end": "2026-11-18", "days": 30},
+        "range": {"start": "2026-09-20", "end": "2026-11-18", "days": 60},
         "source": "cdp",
         "daily": [
             {"date": "2026-11-17", "roi": 2.0, "spend": 1000, "gmv": 2000, "orders": 10},
@@ -222,11 +222,11 @@ def test_account_history_becomes_the_default_data_foundation():
     reference = build_historical_reference([], account_history=record)
 
     assert reference["sample_count"] == 2
-    assert reference["window_start"] == "2026-10-20"
+    assert reference["window_start"] == "2026-09-20"
     assert reference["window_end"] == "2026-11-18"
     metrics = {item["key"]: item for item in reference["metrics"]}
     assert metrics["roi"]["average"] == 1.9
     assert metrics["spend"]["average"] == 750.0
     assert metrics["gmv"]["average"] == 1450.0
     assert metrics["orders"]["average"] == 9.0
-    assert "近30天" in reference["note"]
+    assert "近60天" in reference["note"]

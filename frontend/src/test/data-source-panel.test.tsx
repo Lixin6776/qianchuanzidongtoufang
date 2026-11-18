@@ -70,7 +70,7 @@ test("数据源窗口同时展示 CDP 和 API 两条链路，并标出当前生�
   expect(screen.getAllByText("本机浏览器连接").length).toBeGreaterThan(0);
 });
 
-test("账户近30天数据底座可以手动读取并展示真实汇总", async () => {
+test("账户近60天数据底座可以手动读取并展示真实汇总", async () => {
   getCdpConnection.mockResolvedValue({ connected: true, pages: 1, qianchuan_pages: 1, error: null, endpoint: "x", browser: "" });
   getApiConnectionStatus.mockResolvedValue({ configured: false, provider_preference: "cdp" });
   getLocalConfig.mockResolvedValue({
@@ -86,7 +86,7 @@ test("账户近30天数据底座可以手动读取并展示真实汇总", async 
     account_id: "1873104018827399",
     room_name: "质润官方旗舰店",
     source: "cdp",
-    range: { start: "2026-10-20", end: "2026-11-18", days: 30 },
+    range: { start: "2026-09-20", end: "2026-11-18", days: 60 },
     imported_at: "2026-11-18T10:00:00+00:00",
     summary: {
       spend: 2933164.12,
@@ -101,8 +101,8 @@ test("账户近30天数据底座可以手动读取并展示真实汇总", async 
 
   render(<DataSourcePanel />);
 
-  expect(await screen.findByText("账户近30天数据底座")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "读取近30天数据" }));
+  expect(await screen.findByText("账户近60天数据底座")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "读取近60天数据" }));
   await waitFor(() => expect(bootstrapAccountHistory).toHaveBeenCalledWith(true));
   expect(await screen.findByText("2.05")).toBeInTheDocument();
   expect(screen.getByText(/有效天数/)).toBeInTheDocument();

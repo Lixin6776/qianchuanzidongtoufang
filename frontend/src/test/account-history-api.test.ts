@@ -7,7 +7,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("连接成功后自动读取账户近30天数据底座", async () => {
+test("连接成功后自动读取账户近60天数据底座", async () => {
   const fetchMock = vi
     .fn()
     .mockResolvedValueOnce({
@@ -24,7 +24,7 @@ test("连接成功后自动读取账户近30天数据底座", async () => {
       json: async () => ({
         account_id: "123",
         source: "cdp",
-        range: { start: "2026-10-20", end: "2026-11-18", days: 30 },
+        range: { start: "2026-09-20", end: "2026-11-18", days: 60 },
         summary: { spend: 100, gmv: 205, orders: 2, roi: 2.05 },
         daily: [],
         quality: { status: "good", days_with_data: 30, notes: [] }

@@ -643,7 +643,7 @@ export async function connectCdp(
       await bootstrapAccountHistory(false);
     } catch (error) {
       result.account_history_error =
-        error instanceof Error ? error.message : "账户近30天数据读取失败";
+        error instanceof Error ? error.message : "账户近60天数据读取失败";
     }
   }
   return result;
@@ -855,7 +855,7 @@ export async function getSystemDoctor(): Promise<SystemDoctorReport> {
   return response.json();
 }
 
-// --- 账户近 30 天数据底座 ----------------------------------------------------
+// --- 账户近 60 天数据底座 ----------------------------------------------------
 
 export type AccountHistorySummary = {
   spend: number | null;
@@ -903,7 +903,7 @@ export async function bootstrapAccountHistory(
   );
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(body?.detail || "账户近30天数据读取失败");
+    throw new Error(body?.detail || "账户近60天数据读取失败");
   }
   clearGetCache("/api/account-history");
   return body;

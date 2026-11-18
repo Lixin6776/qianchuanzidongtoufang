@@ -79,7 +79,7 @@ def test_parse_cdp_history_keeps_roi_and_gmv_definitions_aligned():
 
 
 @pytest.mark.asyncio
-async def test_bootstrap_prefers_api_and_caches_30_day_history(tmp_path):
+async def test_bootstrap_prefers_api_and_caches_60_day_history(tmp_path):
     calls = {"api": 0, "cdp": 0}
 
     async def api_collector(account_id, start_date, end_date):
@@ -117,7 +117,7 @@ async def test_bootstrap_prefers_api_and_caches_30_day_history(tmp_path):
     )
 
     assert first["source"] == "api"
-    assert first["range"] == {"start": "2026-10-20", "end": "2026-11-18", "days": 30}
+    assert first["range"] == {"start": "2026-09-20", "end": "2026-11-18", "days": 60}
     assert second["cache_hit"] is True
     assert calls == {"api": 1, "cdp": 0}
     assert store.get("123")["summary"]["roi"] == 2.0

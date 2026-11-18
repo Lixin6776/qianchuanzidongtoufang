@@ -4,13 +4,13 @@ from app.execution.cdp.account_history_reader import build_history_url
 from app.services.account_history import parse_api_history
 
 
-def test_build_history_url_uses_exact_30_day_range_and_account():
+def test_build_history_url_uses_exact_60_day_range_and_account():
     url = build_history_url(
-        "1873104018827399", date(2026, 10, 20), date(2026, 11, 18)
+        "1873104018827399", date(2026, 9, 20), date(2026, 11, 18)
     )
 
     assert "aavid=1873104018827399" in url
-    assert "dateRange=2026-10-20%2C2026-11-18" in url
+    assert "dateRange=2026-09-20%2C2026-11-18" in url
     assert "/overall-prom?" in url
 
 

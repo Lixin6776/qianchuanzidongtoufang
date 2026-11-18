@@ -1,4 +1,4 @@
-"""从千川「近30天」账户总览页读取数据底座。
+"""从千川「近60天」账户总览页读取数据底座。
 
 只读取页面真实网络响应，不解析 DOM 猜测数值；读取完成后关闭临时页面，
 不会因为“连接数据源”反复弹出一堆千川 tab。
@@ -78,4 +78,4 @@ class CdpAccountHistoryReader:
             missing.append("账户汇总")
         if "daily" not in captured:
             missing.append("每日趋势")
-        raise RuntimeError("千川近30天数据未读取完整：缺少" + "、".join(missing))
+        raise RuntimeError("千川近60天数据未读取完整：缺少" + "、".join(missing))

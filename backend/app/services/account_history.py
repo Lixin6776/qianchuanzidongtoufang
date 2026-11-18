@@ -1,6 +1,6 @@
-"""账户近 30 天数据底座。
+"""账户近 60 天数据底座。
 
-首次连接数据源时，把账户近 30 天的真实投放数据落成本地快照。
+首次连接数据源时，把账户近 60 天的真实投放数据落成本地快照。
 这里只做归一化、缓存和来源回退，不生成缺失数据，也不把支付 GMV 和结算 GMV 混用。
 """
 
@@ -17,7 +17,7 @@ BEIJING = ZoneInfo("Asia/Shanghai")
 DEFAULT_HISTORY_PATH = (
     Path(__file__).resolve().parents[3] / ".local" / "account_history.json"
 )
-HISTORY_DAYS = 30
+HISTORY_DAYS = 60
 CDP_ROI_DEFINITION = "综合营销ROI（结算口径）"
 API_ROI_DEFINITION = "支付ROI（开放平台账户报表口径）"
 
@@ -133,7 +133,7 @@ def parse_cdp_history(overview_payload: dict, daily_payload: dict) -> dict[str, 
         "active_days": sum(1 for item in daily if (item.get("spend") or 0) > 0),
         "missing_fields": missing,
         "notes": [
-            "数据来自千川账户“近30天”综合数据，CDP 读取后直接解析页面真实响应",
+            "数据来自千川账户“近60天”综合数据，CDP 读取后直接解析页面真实响应",
             f"ROI 口径：{CDP_ROI_DEFINITION}；支付 GMV 与结算 GMV 分列保存",
         ],
     }
@@ -263,7 +263,7 @@ class AccountHistoryService:
     ) -> dict[str, Any]:
         account = str(account_id or "").strip()
         if not account:
-            raise AccountHistoryError("缺少账户 ID，无法读取近 30 天数据")
+            raise AccountHistoryError("缺少账户 ID，无法读取近 60 天数据")
         today = self.today()
         existing = self.store.get(account)
         if existing and not force and self._fresh(existing, today):

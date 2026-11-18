@@ -90,13 +90,13 @@ def test_read_provider_requests_daily_account_history_for_date_range():
             }
 
     provider = ApiReadProvider(HistoryClient(), advertiser_id=123)
-    payload = provider.get_account_history("2026-10-20", "2026-11-18")
+    payload = provider.get_account_history("2026-09-20", "2026-11-18")
 
     assert captured["method"] == "GET"
     assert captured["path"] == "/open_api/v1.0/qianchuan/report/advertiser/get/"
     params = captured["params"]
     assert params["advertiser_id"] == 123
-    assert params["start_date"] == "2026-10-20"
+    assert params["start_date"] == "2026-09-20"
     assert params["end_date"] == "2026-11-18"
     assert params["time_granularity"] == "TIME_GRANULARITY_DAILY"
     assert "stat_cost" in params["fields"]

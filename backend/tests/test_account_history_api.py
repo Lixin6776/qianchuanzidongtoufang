@@ -6,7 +6,7 @@ def test_account_history_api_bootstraps_and_returns_status(client, monkeypatch):
         "account_id": "123",
         "room_name": "测试直播间",
         "source": "cdp",
-        "range": {"start": "2026-10-20", "end": "2026-11-18", "days": 30},
+        "range": {"start": "2026-09-20", "end": "2026-11-18", "days": 60},
         "imported_at": "2026-11-18T10:00:00+00:00",
         "summary": {"spend": 1000, "gmv": 2000, "orders": 10, "roi": 2.0},
         "daily": [],

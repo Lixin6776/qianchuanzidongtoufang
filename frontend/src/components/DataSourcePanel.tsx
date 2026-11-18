@@ -125,15 +125,15 @@ export function DataSourcePanel() {
 
   async function handleConnect() {
     setBusy(true);
-    setNotice("正在连接数据源，并读取账户近30天数据底座...");
+    setNotice("正在连接数据源，并读取账户近60天数据底座...");
     try {
       const next = await connectCdp("auto");
       setCdp(next);
       await refresh();
       if (next.account_history_error) {
-        setNotice(`数据源已连接，但近30天读取失败：${next.account_history_error}`);
+        setNotice(`数据源已连接，但近60天读取失败：${next.account_history_error}`);
       } else {
-        setNotice(next.message || (next.connected ? "数据源已连接，近30天数据底座已就绪" : "还没连上"));
+        setNotice(next.message || (next.connected ? "数据源已连接，近60天数据底座已就绪" : "还没连上"));
       }
     } catch {
       setNotice("连接失败，确认本机装了 Chrome 再试");
@@ -144,15 +144,15 @@ export function DataSourcePanel() {
 
   async function handleBootstrapHistory() {
     setBusy(true);
-    setNotice("正在读取账户近30天数据；首次读取会打开一个千川页面，完成后自动关闭。");
+    setNotice("正在读取账户近60天数据；首次读取会打开一个千川页面，完成后自动关闭。");
     try {
       const record = await bootstrapAccountHistory(true);
       setHistory(record);
       setNotice(
-        `近30天数据已更新：${record.range.start} 至 ${record.range.end}，来源${record.source === "api" ? "开放平台" : "本机浏览器"}`
+        `近60天数据已更新：${record.range.start} 至 ${record.range.end}，来源${record.source === "api" ? "开放平台" : "本机浏览器"}`
       );
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "近30天数据读取失败");
+      setNotice(error instanceof Error ? error.message : "近60天数据读取失败");
     } finally {
       setBusy(false);
     }
@@ -193,10 +193,10 @@ export function DataSourcePanel() {
       try {
         const record = await bootstrapAccountHistory(true);
         setHistory(record);
-        setNotice(`${result.message || "API 连接成功"}；账户近30天数据底座已更新`);
+        setNotice(`${result.message || "API 连接成功"}；账户近60天数据底座已更新`);
       } catch (historyError) {
         setNotice(
-          `${result.message || "API 连接成功"}；近30天数据读取失败：${
+          `${result.message || "API 连接成功"}；近60天数据读取失败：${
             historyError instanceof Error ? historyError.message : "未知错误"
           }`
         );
@@ -270,14 +270,14 @@ export function DataSourcePanel() {
         <header>
           <div>
             <p className="eyebrow">Data foundation</p>
-            <h4>账户近30天数据底座</h4>
+            <h4>账户近60天数据底座</h4>
           </div>
           <span className={history ? "is-ready" : ""}>
             {history ? (history.quality.status === "good" ? "已就绪" : "部分数据") : "未读取"}
           </span>
         </header>
         <p className="monitor-signal">
-          新数据源首次连接后自动读取；用真实 30 天数据建立账户基线。首次读取会打开一个千川页面，完成后自动关闭。
+          新数据源首次连接后自动读取；用真实 60 天数据建立账户基线。首次读取会打开一个千川页面，完成后自动关闭。
         </p>
         {history ? (
           <>
@@ -302,10 +302,10 @@ export function DataSourcePanel() {
             ) : null}
           </>
         ) : (
-          <p className="monitor-signal">连接数据源后，这里会显示近30天 ROI、消耗、结算 GMV、订单和有效天数。</p>
+          <p className="monitor-signal">连接数据源后，这里会显示近60天 ROI、消耗、结算 GMV、订单和有效天数。</p>
         )}
         <button className="button-outline" type="button" onClick={handleBootstrapHistory} disabled={busy}>
-          {busy ? "读取中..." : history ? "重新读取近30天" : "读取近30天数据"}
+          {busy ? "读取中..." : history ? "重新读取近60天" : "读取近60天数据"}
         </button>
       </section>
 

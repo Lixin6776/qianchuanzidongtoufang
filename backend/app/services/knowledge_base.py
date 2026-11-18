@@ -22,9 +22,9 @@ METRIC_FIELDS = {
     "view_conversion_rate": ("观看成交转化率", "%", 2),
     "online_viewers": ("在线人数均值", "人", 0),
     "assist_share": ("追投/调控占比", "%", 1),
-    "spend": ("近30天日均消耗", "元", 2),
-    "gmv": ("近30天日均结算GMV", "元", 2),
-    "orders": ("近30天日均订单", "单", 0),
+    "spend": ("近60天日均消耗", "元", 2),
+    "gmv": ("近60天日均结算GMV", "元", 2),
+    "orders": ("近60天日均订单", "单", 0),
 }
 
 
@@ -96,7 +96,7 @@ def _account_history_reference(record: dict | None) -> dict | None:
         "window_end": range_value.get("end"),
         "metrics": metrics,
         "note": (
-            "未上传知识文件时，使用新数据源连接后读取的账户近30天日报作为数据底座；"
+            "未上传知识文件时，使用新数据源连接后读取的账户近60天日报作为数据底座；"
             "仅作历史参考，不是规则，也不代表未来一定如此。"
         ),
     }

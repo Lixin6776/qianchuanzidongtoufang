@@ -1,4 +1,4 @@
-"""账户近 30 天数据底座接口。"""
+"""账户近 60 天数据底座接口。"""
 
 from __future__ import annotations
 
