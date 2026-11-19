@@ -219,7 +219,8 @@ export function LiveStatusCard({
     !sessionMismatch &&
     (dataQuality?.session_confirmed ?? Boolean(report?.live_started_at));
   const qualityStatus = sessionMismatch ? "mismatch" : dataQuality?.status ?? "unknown";
-  const currentQualityLabel = qualityLabel(dataQuality, sessionMismatch);
+  const dataSourceInterrupted = qualityStatus === "invalid" && report?.source === "cdp-error";
+  const currentQualityLabel = dataSourceInterrupted ? "数据源中断" : qualityLabel(dataQuality, sessionMismatch);
   const currentQualityTone = qualityTone(dataQuality, sessionMismatch);
   const averageOnline =
     report?.average_online_viewers ?? dataQuality?.average_online_viewers ?? null;
@@ -322,7 +323,7 @@ export function LiveStatusCard({
     ? "danger"
     : isEnded || watchStopped
       ? "muted"
-      : sessionMismatch || isStale || qualityStatus === "invalid"
+      : sessionMismatch || isStale || dataSourceInterrupted
         ? "danger"
         : qualityStatus === "partial" || qualityStatus === "unconfirmed"
           ? "warning"
@@ -335,34 +336,40 @@ export function LiveStatusCard({
         ? "场次不一致"
         : qualityStatus === "unconfirmed"
           ? "场次待确认"
-          : qualityStatus === "invalid"
-            ? "数据源异常"
+          : dataSourceInterrupted
+            ? "数据源中断"
             : isStale
               ? "数据已过期"
               : qualityStatus === "partial"
                 ? "字段不完整"
                 : toneLabel(tone);
-  const snapshotNote = sessionMismatch
-    ? "最新数据不属于当前场次，已停止把它当作实时盘面；请重新读取当前场次数据。"
-    : qualityStatus === "unconfirmed"
-      ? "当前场次开播时间未确认，无法确认这份数据属于当前场次；不计算本场平均在线，也不做实时判断。"
-      : qualityStatus === "invalid"
-        ? "数据来源不可识别，已停止把这份读数当作实时盘面。"
-        : isEnded
-      ? "直播已结束，自动盯盘和数据轮询已停止，当前展示最终快照，不再代表实时数据。"
-      : watchStopped
-        ? "盯盘当前未运行，当前展示最后快照，数据可能已过期。"
-        : isStale
-          ? `盯盘仍在运行，但数据已 ${staleMinutes} 分钟未更新；当前读数只代表最后一次成功采集。`
-          : "";
-  const diagnosticProblem = snapshotOnly
-    ? snapshotNote || plainText(status?.last_error) || "当前不是实时数据"
-    : error || problem || "本轮未返回异常项";
-  const diagnosticAdvice = isEnded
-    ? "下一场开播后，在「直播盯盘」里手动开始。"
+  const snapshotNote = isEnded && dataSourceInterrupted
+    ? "本场已结束，最后更新时数据源已断开；当前保留最后一份成功快照，不是实时数据。"
+    : dataSourceInterrupted
+      ? "本机浏览器或千川大屏连接已断开，盯盘已暂停。请在「直播盯盘」里连接数据源并登录千川，然后恢复盯盘。"
+      : sessionMismatch
+        ? "最新数据不属于当前场次，已停止把它当作实时盘面；请重新读取当前场次数据。"
+        : qualityStatus === "unconfirmed"
+          ? "当前场次开播时间未确认，无法确认这份数据属于当前场次；不计算本场平均在线，也不做实时判断。"
+          : isEnded
+            ? "直播已结束，自动盯盘和数据轮询已停止，当前展示最终快照，不再代表实时数据。"
+            : watchStopped
+              ? "盯盘当前未运行，当前展示最后快照，数据可能已过期。"
+              : isStale
+                ? `盯盘仍在运行，但数据已 ${staleMinutes} 分钟未更新；当前读数只代表最后一次成功采集。`
+                : "";
+  const diagnosticProblem = dataSourceInterrupted
+    ? plainText(status?.last_error) || "本机浏览器或千川页面读取失败"
+    : snapshotOnly
+      ? snapshotNote || plainText(status?.last_error) || "当前不是实时数据"
+      : error || problem || "本轮未返回异常项";
+  const diagnosticAdvice = dataSourceInterrupted && !isEnded
+    ? "打开「直播盯盘」→ 连接数据源 → 登录千川 → 恢复盯盘；恢复前不要根据旧数据做投放动作。"
+    : isEnded
+      ? "下一场开播后，在「直播盯盘」里手动开始。"
     : watchStopped
       ? "需要继续盯盘时，在「直播盯盘」里开始或恢复。"
-      : sessionMismatch || qualityStatus === "unconfirmed" || qualityStatus === "invalid"
+      : sessionMismatch || qualityStatus === "unconfirmed" || dataSourceInterrupted
         ? "先重新读取当前场次；场次、来源和新鲜度确认前，不要根据这组数据做投放动作。"
         : isStale
           ? "先检查数据源连接或点击「立即读取一次」；恢复前不要根据这组数据做投放动作。"
@@ -415,8 +422,8 @@ export function LiveStatusCard({
         ? "盯盘已停止，不再判断实时状态"
         : qualityStatus === "unconfirmed"
           ? "场次待确认，不计算本场均值"
-          : qualityStatus === "invalid"
-            ? "数据源异常，暂停实时判断"
+          : dataSourceInterrupted
+            ? "数据源中断，暂停实时判断"
             : isStale
               ? "数据已过期，暂停实时判断"
               : qualityStatus === "partial"
@@ -453,7 +460,7 @@ export function LiveStatusCard({
           </div>
         </div>
         <div className="live-status-meta">
-          <span className="live-status-source">{report?.source ? report.source.toUpperCase() : "WAIT"}</span>
+          <span className="live-status-source">{dataSourceInterrupted ? "数据源中断" : report?.source ? report.source.toUpperCase() : "WAIT"}</span>
           <span className={`live-status-badge live-status-badge-${tone}`}>{badgeLabel}</span>
           <time>{loading ? "读取中" : `${isEnded ? "最后更新" : "更新于"} ${formatTime(observedAt)}`}</time>
         </div>

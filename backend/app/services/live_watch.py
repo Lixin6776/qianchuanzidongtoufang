@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
+from app.services.analytics import ComputedMetrics
 from app.services.decision_loop import build_priority_actions
 from app.services.diagnosis import diagnose
 from app.services.monitor import MonitorEvent
@@ -891,7 +892,7 @@ QUALITY_STATUS_LABELS = {
     "partial": "字段不完整",
     "stale": "已过期",
     "unconfirmed": "场次待确认",
-    "invalid": "来源异常",
+    "invalid": "数据源中断",
 }
 
 
@@ -1017,7 +1018,10 @@ def build_data_quality(event: MonitorEvent, online_summary: dict) -> dict:
     freshness = str(event.freshness or "unknown")
     issues: list[str] = []
     if not source_confirmed:
-        issues.append(f"数据来源不可识别：{event.source or '未知'}")
+        if event.source == "cdp-error":
+            issues.append("数据源读取失败：本机浏览器或千川页面不可用")
+        else:
+            issues.append(f"数据来源不可识别：{event.source or '未知'}")
     if freshness != "fresh":
         issues.append(f"数据新鲜度不足：{freshness}")
     if not session_confirmed:
@@ -1607,7 +1611,7 @@ class LiveWatchService:
         # CDP 断了自动重连：连续失败到阈值后，尝试自己把调试浏览器拉起来。
         # （用户反馈过：关电脑 / 浏览器被关之后，工具不会自己恢复读数据。）
         self.cdp_reconnector = cdp_reconnector
-        self.reconnect_after_failures = 3
+        self.reconnect_after_failures = 2
         self.reconnect_cooldown_seconds = 600.0
         self._last_reconnect_at: datetime | None = None
         self._task: asyncio.Task | None = None
@@ -1866,6 +1870,48 @@ class LiveWatchService:
             event = await event
         history = [log for log in self.store.list_logs(limit=10)][::-1]
         baseline_history = self.store.list_logs(limit=400)[::-1]
+        if event.source == "cdp-error":
+            last_good = next(
+                (
+                    row
+                    for row in reversed(history)
+                    if str(row.get("source") or "") not in {"", "cdp-error"}
+                ),
+                None,
+            )
+            if last_good is not None:
+                last_spend = float(last_good.get("spend") or 0)
+                last_cpm = last_good.get("cpm")
+                exposure_count = (
+                    round(last_spend / float(last_cpm) * 1000)
+                    if last_cpm and last_spend > 0
+                    else None
+                )
+                event.metrics = ComputedMetrics(
+                    roi=last_good.get("roi"),
+                    gpm=last_good.get("gpm"),
+                    spend=last_spend,
+                    gmv=float(last_good.get("gmv") or 0),
+                    orders=int(last_good.get("orders") or 0),
+                    online_viewers=int(last_good.get("online_viewers") or 0),
+                    views=int(last_good.get("views") or 0),
+                    exposure_count=exposure_count,
+                    view_count=int(last_good.get("views") or 0),
+                    product_clicks=last_good.get("product_clicks"),
+                    view_conversion_rate=last_good.get("view_conversion_rate"),
+                    exposure_view_rate=last_good.get("exposure_view_rate"),
+                    room_name=last_good.get("room_name"),
+                    live_room_id=last_good.get("live_room_id"),
+                )
+                started = _parse_timestamp(last_good.get("live_started_at"))
+                if started is not None:
+                    event.live_started_at = started
+                previous_status = str(last_good.get("session_status") or "")
+                if previous_status in {"active", "ended", "stopped"}:
+                    event.plan_status = previous_status
+                event.reason = (
+                    f"{event.reason}；当前展示最后一次成功读数，不把旧数据当成实时盘面"
+                )
         room_name = getattr(event.metrics, "room_name", None)
         # 必须带场次：不带的话 compute_baselines 会退化成"同直播间所有历史"，
         # 上一场（甚至已结束场次的冻结页）的样本会混进来污染基线。
@@ -2010,7 +2056,7 @@ class LiveWatchService:
         # 为什么需要：大屏页头经常不渲染"已结束"，投放管理页也可能还挂着上一场的
         # 「直播大屏」入口，导致 session_state 误判成 live。
         # 只对"超过 20 小时且 60 分钟没涨消耗"生效 —— 真正在花钱的超长连播不会被误停。
-        if event.plan_status != "ended" and session_started is not None:
+        if event.source != "cdp-error" and event.plan_status != "ended" and session_started is not None:
             now_utc = datetime.now(UTC)
             started = session_started
             if started.tzinfo is None:
@@ -2363,15 +2409,16 @@ class LiveWatchService:
                 # 但不要退出循环，等数据源恢复后下一轮自动接上。
                 self._last_error = f"{type(exc).__name__}: {exc}"
                 self._consecutive_failures += 1
-            await self._maybe_reconnect_cdp()
             if self._pending_stop_reason:
-                # 本场已结束：出完复盘就收工，下一场要手动开
+                # 本场已结束：出完复盘就收工，下一场要手动开。
+                # 必须先退出，避免结束判定后又自动重连浏览器。
                 reason = self._pending_stop_reason
                 self._pending_stop_reason = None
                 self.desired_running = False
                 self._write_state(False)
                 await self._publish_notice(reason)
                 return
+            await self._maybe_reconnect_cdp()
             await asyncio.sleep(self.interval_seconds)
 
     async def _publish_notice(self, text: str) -> None:

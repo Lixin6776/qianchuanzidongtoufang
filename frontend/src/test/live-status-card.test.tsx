@@ -340,3 +340,30 @@ test("priority board shows at most three unique actions", () => {
   expect(screen.getByText("素材消耗集中度过高")).toBeInTheDocument();
   expect(screen.queryByText("这条不应出现在首页")).not.toBeInTheDocument();
 });
+
+test("CDP 读取失败时显示数据源中断和恢复步骤，不把它说成来源不明", () => {
+  const broken: LiveWatchReport = {
+    ...report,
+    id: "watch-cdp-error",
+    source: "cdp-error",
+    session_status: "active",
+    data_quality: {
+      ...report.data_quality!,
+      status: "invalid",
+      label: "来源异常",
+      freshness: "stale",
+      source_confirmed: false,
+      missing_fields: ["综合营销 ROI", "GPM", "CPM"],
+      issues: ["数据来源不可识别：cdp-error"]
+    }
+  };
+
+  render(<LiveStatusCard report={broken} refreshMs={0} />);
+
+  expect(screen.getAllByText("数据源中断").length).toBeGreaterThan(0);
+  expect(
+    screen.getByText(/本机浏览器或千川大屏连接已断开/)
+  ).toBeInTheDocument();
+  expect(screen.getByText(/连接数据源并登录千川/)).toBeInTheDocument();
+  expect(screen.queryByText("数据来源不可识别")).not.toBeInTheDocument();
+});

@@ -462,3 +462,45 @@ def test_single_not_live_signal_does_not_end_session(tmp_path):
 
     asyncio.run(service.tick_once())
     assert not service._pending_stop_reason
+
+def test_cdp_error_keeps_last_good_metrics_and_does_not_guess_live_ended(tmp_path):
+    from datetime import UTC, datetime, timedelta
+
+    store = SqliteWatchLogStore(tmp_path / "w.sqlite3", tmp_path / "none.json")
+    started = datetime.now(UTC) - timedelta(hours=1)
+    store.append(
+        {
+            "id": "good-1",
+            "created_at": (datetime.now(UTC) - timedelta(minutes=5)).isoformat(),
+            "captured_at": (datetime.now(UTC) - timedelta(minutes=5)).isoformat(),
+            "source": "cdp",
+            "roi": 1.8,
+            "gpm": 2000.0,
+            "spend": 500.0,
+            "gmv": 900.0,
+            "orders": 10,
+            "online_viewers": 30,
+            "views": 5000,
+            "cpm": 80.0,
+            "room_name": "质润官方旗舰店",
+            "live_started_at": started.isoformat(),
+            "session_status": "active",
+            "data_quality": {"status": "good"},
+            "verify_passed": True,
+        }
+    )
+
+    event = _broken_event()
+    event.captured_at = datetime.now(UTC)
+    event.live_started_at = started
+    service = LiveWatchService(_FakeMonitor(event), None, store=store)
+
+    report = asyncio.run(service.tick_once())
+
+    assert report["source"] == "cdp-error"
+    assert report["roi"] == 1.8
+    assert report["spend"] == 500.0
+    assert report["data_quality"]["status"] == "invalid"
+    # 读失败本身不能证明直播结束，必须保留上一份场次状态
+    assert report["session_status"] == "active"
+    assert not service._pending_stop_reason
