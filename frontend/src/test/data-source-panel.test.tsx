@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 const getCdpConnection = vi.fn();
@@ -96,14 +96,14 @@ test("账户近60天数据底座可以手动读取并展示真实汇总", async 
       roi_definition: "综合营销ROI（结算口径）"
     },
     daily: [],
-    quality: { status: "good", days_with_data: 30, active_days: 29, notes: [] }
+    quality: { status: "good", days_with_data: 60, active_days: 58, notes: [] }
   });
 
   render(<DataSourcePanel />);
 
   expect(await screen.findByText("账户近60天数据底座")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "读取近60天数据" }));
-  await waitFor(() => expect(bootstrapAccountHistory).toHaveBeenCalledWith(true));
+  await waitFor(() => expect(bootstrapAccountHistory).toHaveBeenCalledWith(true, expect.any(Function)));
   expect(await screen.findByText("2.05")).toBeInTheDocument();
   expect(screen.getByText(/有效天数/)).toBeInTheDocument();
 });
@@ -124,4 +124,55 @@ test("数据源窗口可以直接改直播间/账户（不用碰 .env）", async
   expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   // 说明要讲清楚"留空=用 .env 的值"
   expect(screen.getByText(/不需要修改配置文件/)).toBeInTheDocument();
+});
+
+test("读取60天失败时在按钮旁直接显示错误，不再静默无反应", async () => {
+  getCdpConnection.mockResolvedValue({ connected: true, pages: 1, qianchuan_pages: 1, error: null, endpoint: "x", browser: "" });
+  getApiConnectionStatus.mockResolvedValue({ configured: false, provider_preference: "cdp" });
+  getLocalConfig.mockResolvedValue({
+    saved: {},
+    effective: { room_name: "质润官方旗舰店", aavid: "1873104018827399" }
+  });
+  getAccountHistory.mockResolvedValue({ account_id: "1873104018827399", configured: false, history: null });
+  bootstrapAccountHistory.mockRejectedValue(new Error("本机浏览器未登录千川，未读到60天数据"));
+
+  render(<DataSourcePanel />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "读取近60天数据" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("未登录千川");
+});
+test("读取60天任务启动后立刻显示进度，不让按钮静默等待", async () => {
+  getCdpConnection.mockResolvedValue({ connected: true, pages: 1, qianchuan_pages: 1, error: null, endpoint: "x", browser: "" });
+  getApiConnectionStatus.mockResolvedValue({ configured: false, provider_preference: "cdp" });
+  getLocalConfig.mockResolvedValue({
+    saved: {},
+    effective: { room_name: "质润官方旗舰店", aavid: "1873104018827399" }
+  });
+  getAccountHistory.mockResolvedValue({ account_id: "1873104018827399", configured: false, history: null });
+  let finish: ((value: unknown) => void) | undefined;
+  bootstrapAccountHistory.mockImplementation(
+    (_force: boolean, onProgress: (job: Record<string, unknown>) => void) => {
+      onProgress({
+        id: "job-1",
+        status: "running",
+        stage: "正在读取本机浏览器中的千川账户数据",
+        started_at: new Date().toISOString()
+      });
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    }
+  );
+
+  render(<DataSourcePanel />);
+  fireEvent.click(await screen.findByRole("button", { name: "读取近60天数据" }));
+
+  expect(await screen.findByRole("button", { name: "读取中..." })).toBeDisabled();
+  expect(screen.getByRole("status")).toHaveTextContent("正在读取本机浏览器");
+  if (!finish) throw new Error("pending read was not started");
+  await act(async () => {
+    finish?.(null);
+    await Promise.resolve();
+  });
 });

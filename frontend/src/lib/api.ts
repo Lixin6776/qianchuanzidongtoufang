@@ -531,6 +531,7 @@ export type CdpConnectionStatus = {
   needs_chrome_restart?: boolean;
   mode_used?: string;
   message?: string;
+  account_history_job_id?: string;
   account_history_error?: string;
 };
 
@@ -640,10 +641,11 @@ export async function connectCdp(
   const result = (await response.json()) as CdpConnectionStatus;
   if (result.connected) {
     try {
-      await bootstrapAccountHistory(false);
+      const job = await startAccountHistoryBootstrap(false);
+      result.account_history_job_id = job.id;
     } catch (error) {
       result.account_history_error =
-        error instanceof Error ? error.message : "账户近60天数据读取失败";
+        error instanceof Error ? error.message : "账户近60天数据读取启动失败";
     }
   }
   return result;
@@ -894,17 +896,64 @@ export async function getAccountHistory(): Promise<{
   return cachedGet("/api/account-history", 5_000);
 }
 
-export async function bootstrapAccountHistory(
+export type AccountHistoryJob = {
+  id: string;
+  account_id: string;
+  status: "running" | "completed" | "failed";
+  stage: string;
+  started_at: string;
+  result: AccountHistoryRecord | null;
+  error: string;
+};
+
+export async function startAccountHistoryBootstrap(
   force = false
-): Promise<AccountHistoryRecord> {
+): Promise<AccountHistoryJob> {
   const response = await fetch(
-    `${API_BASE}/api/account-history/bootstrap?force=${force ? "true" : "false"}`,
+    `${API_BASE}/api/account-history/bootstrap/start?force=${force ? "true" : "false"}`,
     { method: "POST" }
   );
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(body?.detail || "账户近60天数据读取失败");
+    throw new Error(body?.detail || "账户近60天数据读取启动失败");
   }
-  clearGetCache("/api/account-history");
   return body;
+}
+
+export async function getAccountHistoryJob(jobId: string): Promise<AccountHistoryJob> {
+  const response = await fetch(`${API_BASE}/api/account-history/bootstrap/${jobId}`, {
+    cache: "no-store"
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body?.detail || "账户近60天数据读取状态获取失败");
+  }
+  return body;
+}
+
+export async function waitForAccountHistoryJob(
+  jobId: string,
+  onProgress?: (job: AccountHistoryJob) => void
+): Promise<AccountHistoryRecord> {
+  for (;;) {
+    const job = await getAccountHistoryJob(jobId);
+    onProgress?.(job);
+    if (job.status === "completed" && job.result) {
+      clearGetCache("/api/account-history");
+      return job.result;
+    }
+    if (job.status === "failed") {
+      throw new Error(job.error || job.stage || "账户近60天数据读取失败");
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+}
+
+export async function bootstrapAccountHistory(
+  force = false,
+  onProgress?: (job: AccountHistoryJob) => void
+): Promise<AccountHistoryRecord> {
+  const job = await startAccountHistoryBootstrap(force);
+  onProgress?.(job);
+  return waitForAccountHistoryJob(job.id, onProgress);
 }

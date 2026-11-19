@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date
+import uuid
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -20,6 +21,9 @@ from app.services.account_history import (
 from app.services.api_client import OceanEngineApiClient
 
 router = APIRouter(prefix="/api/account-history", tags=["account-history"])
+
+_BOOTSTRAP_JOBS: dict[str, dict] = {}
+_BOOTSTRAP_TASKS: dict[str, asyncio.Task] = {}
 
 
 def make_service() -> AccountHistoryService:
@@ -70,3 +74,73 @@ async def bootstrap_account_history(force: bool = False) -> dict:
         )
     except AccountHistoryError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+def reset_bootstrap_jobs_for_tests() -> None:
+    for task in list(_BOOTSTRAP_TASKS.values()):
+        if not task.done():
+            task.cancel()
+    _BOOTSTRAP_TASKS.clear()
+    _BOOTSTRAP_JOBS.clear()
+
+
+def _running_job(account_id: str) -> dict | None:
+    for job in _BOOTSTRAP_JOBS.values():
+        if job.get("account_id") == account_id and job.get("status") == "running":
+            return job
+    return None
+
+
+@router.post("/bootstrap/start", status_code=202)
+async def start_account_history_bootstrap(force: bool = False) -> dict:
+    account_id = local_config.aavid(settings.aavid)
+    if not account_id:
+        raise HTTPException(status_code=422, detail="请先在数据源里填写账户 ID")
+    existing = _running_job(account_id)
+    if existing is not None:
+        return existing
+
+    job_id = str(uuid.uuid4())
+    job = {
+        "id": job_id,
+        "account_id": account_id,
+        "status": "running",
+        "stage": (
+            "优先读取开放平台，失败后回退本机浏览器"
+            if settings.api_configured and settings.api_advertiser_id
+            else "正在读取本机浏览器中的千川账户数据"
+        ),
+        "started_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "result": None,
+        "error": "",
+    }
+    _BOOTSTRAP_JOBS[job_id] = job
+    service = make_service()
+
+    async def run_job() -> None:
+        try:
+            result = await service.bootstrap(
+                account_id=account_id,
+                room_name=local_config.room_name(settings.live_board_room_name),
+                api_available=bool(settings.api_configured and settings.api_advertiser_id),
+                force=force,
+            )
+            job["status"] = "completed"
+            job["stage"] = "近60天数据底座已更新"
+            job["result"] = result
+        except Exception as exc:  # noqa: BLE001
+            job["status"] = "failed"
+            job["stage"] = "读取失败"
+            job["error"] = str(exc)
+
+    task = asyncio.create_task(run_job())
+    _BOOTSTRAP_TASKS[job_id] = task
+    return job
+
+
+@router.get("/bootstrap/{job_id}")
+def account_history_bootstrap_status(job_id: str) -> dict:
+    job = _BOOTSTRAP_JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="数据底座读取任务不存在")
+    return job

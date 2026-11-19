@@ -4,6 +4,7 @@ import {
   bootstrapAccountHistory,
   connectCdp,
   getAccountHistory,
+  waitForAccountHistoryJob,
   getApiConnectionStatus,
   getCdpConnection,
   getLocalConfig,
@@ -46,6 +47,9 @@ export function DataSourcePanel() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [history, setHistory] = useState<AccountHistoryRecord | null>(null);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyNotice, setHistoryNotice] = useState('');
+  const [historyError, setHistoryError] = useState('');
   // 本机配置：盯哪个直播间 / 哪个账户（不用改 .env）
   const [form, setForm] = useState({ room_name: "", aavid: "" });
   const [effective, setEffective] = useState({ room_name: "", aavid: "" });
@@ -123,18 +127,43 @@ export function DataSourcePanel() {
     return () => window.clearInterval(timer);
   }, []);
 
+  async function pollHistoryJob(jobId: string) {
+    setHistoryBusy(true);
+    setHistoryError("");
+    setHistoryNotice("读取任务已启动，正在连接数据源...");
+    try {
+      const record = await waitForAccountHistoryJob(jobId, (job) => {
+        const waited = Math.max(0, Math.round((Date.now() - new Date(job.started_at).getTime()) / 1000));
+        setHistoryNotice(`${job.stage || "正在读取近60天数据..."}（已等待 ${waited} 秒）`);
+      });
+      setHistory(record);
+      setHistoryNotice(
+        `近60天数据已更新：${record.range.start} 至 ${record.range.end}，来源${record.source === "api" ? "开放平台" : "本机浏览器"}`
+      );
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : "近60天数据读取失败");
+      setHistoryNotice("");
+    } finally {
+      setHistoryBusy(false);
+    }
+  }
+
   async function handleConnect() {
     setBusy(true);
-    setNotice("正在连接数据源，并读取账户近60天数据底座...");
+    setNotice("正在连接数据源...");
     try {
       const next = await connectCdp("auto");
       setCdp(next);
-      await refresh();
-      if (next.account_history_error) {
-        setNotice(`数据源已连接，但近60天读取失败：${next.account_history_error}`);
+      if (next.account_history_job_id) {
+        setNotice("数据源已连接，已启动近60天数据读取任务");
+        void pollHistoryJob(next.account_history_job_id);
+      } else if (next.account_history_error) {
+        setNotice(`数据源已连接，但近60天读取启动失败：${next.account_history_error}`);
+        setHistoryError(next.account_history_error);
       } else {
-        setNotice(next.message || (next.connected ? "数据源已连接，近60天数据底座已就绪" : "还没连上"));
+        setNotice(next.message || (next.connected ? "数据源已连接" : "还没连上"));
       }
+      await refresh();
     } catch {
       setNotice("连接失败，确认本机装了 Chrome 再试");
     } finally {
@@ -143,18 +172,23 @@ export function DataSourcePanel() {
   }
 
   async function handleBootstrapHistory() {
-    setBusy(true);
-    setNotice("正在读取账户近60天数据；首次读取会打开一个千川页面，完成后自动关闭。");
+    setHistoryBusy(true);
+    setHistoryError("");
+    setHistoryNotice("读取任务已启动，正在准备近60天数据...");
     try {
-      const record = await bootstrapAccountHistory(true);
+      const record = await bootstrapAccountHistory(true, (job) => {
+        const waited = Math.max(0, Math.round((Date.now() - new Date(job.started_at).getTime()) / 1000));
+        setHistoryNotice(`${job.stage || "正在读取近60天数据..."}（已等待 ${waited} 秒）`);
+      });
       setHistory(record);
-      setNotice(
+      setHistoryNotice(
         `近60天数据已更新：${record.range.start} 至 ${record.range.end}，来源${record.source === "api" ? "开放平台" : "本机浏览器"}`
       );
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "近60天数据读取失败");
+      setHistoryError(error instanceof Error ? error.message : "近60天数据读取失败");
+      setHistoryNotice("");
     } finally {
-      setBusy(false);
+      setHistoryBusy(false);
     }
   }
 
@@ -190,16 +224,23 @@ export function DataSourcePanel() {
     setNotice("正在测试开放平台连接（会去拉一次广告主信息）...");
     try {
       const result = await testApiConnection();
+      setHistoryBusy(true);
+      setHistoryError("");
+      setHistoryNotice("开放平台连接成功，正在读取近60天数据...");
       try {
-        const record = await bootstrapAccountHistory(true);
+        const record = await bootstrapAccountHistory(true, (job) => {
+          const waited = Math.max(0, Math.round((Date.now() - new Date(job.started_at).getTime()) / 1000));
+        setHistoryNotice(`${job.stage || "正在读取近60天数据..."}（已等待 ${waited} 秒）`);
+        });
         setHistory(record);
-        setNotice(`${result.message || "API 连接成功"}；账户近60天数据底座已更新`);
+        setHistoryNotice(`${result.message || "API 连接成功"}；账户近60天数据底座已更新`);
       } catch (historyError) {
-        setNotice(
-          `${result.message || "API 连接成功"}；近60天数据读取失败：${
-            historyError instanceof Error ? historyError.message : "未知错误"
-          }`
+        setHistoryError(
+          historyError instanceof Error ? historyError.message : "近60天数据读取失败"
         );
+        setHistoryNotice("");
+      } finally {
+        setHistoryBusy(false);
       }
       await refresh();
     } catch (error) {
@@ -304,8 +345,19 @@ export function DataSourcePanel() {
         ) : (
           <p className="monitor-signal">连接数据源后，这里会显示近60天 ROI、消耗、结算 GMV、订单和有效天数。</p>
         )}
-        <button className="button-outline" type="button" onClick={handleBootstrapHistory} disabled={busy}>
-          {busy ? "读取中..." : history ? "重新读取近60天" : "读取近60天数据"}
+        {historyNotice ? (
+          <p className="account-history-progress" role="status">{historyNotice}</p>
+        ) : null}
+        {historyError ? (
+          <p className="account-history-error" role="alert">{historyError}</p>
+        ) : null}
+        <button
+          className="button-outline"
+          type="button"
+          onClick={handleBootstrapHistory}
+          disabled={historyBusy}
+        >
+          {historyBusy ? "读取中..." : history ? "重新读取近60天" : "读取近60天数据"}
         </button>
       </section>
 

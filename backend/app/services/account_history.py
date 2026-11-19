@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -239,11 +239,13 @@ class AccountHistoryService:
         api_collector: Collector | None = None,
         cdp_collector: Collector | None = None,
         today: Callable[[], date] | None = None,
+        now: Callable[[], datetime] | None = None,
     ) -> None:
         self.store = store or AccountHistoryStore()
         self.api_collector = api_collector
         self.cdp_collector = cdp_collector
-        self.today = today or (lambda: datetime.now(BEIJING).date())
+        self.now = now or (lambda: datetime.now(BEIJING))
+        self.today = today or (lambda: self.now().date())
 
     def _fresh(self, record: dict[str, Any], today: date) -> bool:
         range_value = record.get("range") or {}
@@ -308,7 +310,7 @@ class AccountHistoryService:
                 "end": today.isoformat(),
                 "days": HISTORY_DAYS,
             },
-            "imported_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "imported_at": self.now().isoformat(timespec="seconds"),
             "summary": collected.get("summary") or {},
             "daily": collected.get("daily") or [],
             "quality": quality,

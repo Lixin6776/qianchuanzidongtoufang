@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -107,6 +107,7 @@ async def test_bootstrap_prefers_api_and_caches_60_day_history(tmp_path):
         api_collector=api_collector,
         cdp_collector=cdp_collector,
         today=lambda: date(2026, 11, 18),
+        now=lambda: datetime(2026, 11, 18, 10, 0, tzinfo=UTC),
     )
 
     first = await service.bootstrap(
@@ -147,6 +148,7 @@ async def test_bootstrap_falls_back_to_cdp_when_api_fails(tmp_path):
         api_collector=api_collector,
         cdp_collector=cdp_collector,
         today=lambda: date(2026, 11, 18),
+        now=lambda: datetime(2026, 11, 18, 10, 0, tzinfo=UTC),
     )
 
     result = await service.bootstrap(
@@ -167,6 +169,7 @@ async def test_bootstrap_reports_both_sources_failed(tmp_path):
         api_collector=failed_collector,
         cdp_collector=failed_collector,
         today=lambda: date(2026, 11, 18),
+        now=lambda: datetime(2026, 11, 18, 10, 0, tzinfo=UTC),
     )
 
     with pytest.raises(AccountHistoryError, match="两个数据源都失败"):
