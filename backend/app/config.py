@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # 跑测试时必须关掉：那些补跑会真去调飞书(lark-cli)和 CDP，线程卡住会把测试拖死。
     enable_background_jobs: bool = True
     cdp_endpoint: str = "http://127.0.0.1:9222"
+    browser_profile_dir: str = ""
     selector_config_path: str = ".local/selectors/qianchuan.json"
     api_base_url: str = "https://api.oceanengine.com"
     api_app_id: str = ""

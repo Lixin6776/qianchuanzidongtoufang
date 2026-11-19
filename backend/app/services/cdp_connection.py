@@ -17,6 +17,8 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.config import settings
+
 QIANCHUAN_URL = "https://qianchuan.jinritemai.com/"
 
 # 上次读成功过的页面 URL：重开浏览器后照着开回来，不然盯盘找不到大屏页面
@@ -98,6 +100,8 @@ def default_profile_dir() -> Path:
 
 def assistant_profile_dir() -> Path:
     """助手专用 profile（和日常浏览互不影响，登录态持久保存）。"""
+    if settings.browser_profile_dir.strip():
+        return Path(settings.browser_profile_dir).expanduser()
     if sys.platform == "darwin":
         return Path.home() / "Library/Application Support/QianchuanAssistantChrome"
     return Path(os.environ.get("LOCALAPPDATA") or "") / "QianchuanAssistantChrome"

@@ -1,4 +1,10 @@
-const API_BASE = "http://127.0.0.1:8000";
+const currentPort = window.location.port;
+const API_BASE =
+  currentPort === "5173"
+    ? "http://127.0.0.1:8000"
+    : currentPort === "5174"
+      ? "http://127.0.0.1:8001"
+      : window.location.origin;
 
 // 连接状态有多个组件会定时读取；短缓存 + in-flight 去重，避免同一时刻打多份请求。
 const getCache = new Map<string, { at: number; value: unknown }>();

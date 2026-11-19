@@ -158,3 +158,11 @@ async def test_connect_launches_one_qianchuan_page_without_extra_tabs(monkeypatc
     assert status["opened_pages"] == []
     assert len(launched) == 1
     assert launched[0][-1] == conn.QIANCHUAN_URL
+
+def test_assistant_profile_dir_honors_workspace_override(monkeypatch, tmp_path):
+    from app.services import cdp_connection as conn
+
+    target = tmp_path / "workspace-two-chrome"
+    monkeypatch.setattr(conn.settings, "browser_profile_dir", str(target))
+
+    assert conn.assistant_profile_dir() == target
